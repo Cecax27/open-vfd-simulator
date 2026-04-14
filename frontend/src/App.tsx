@@ -1,6 +1,22 @@
 import { FormEvent, useEffect, useState } from "react";
 
-import { DeviceRecord, createDevice, listDevices, stepDevice, updateRuntime } from "./api";
+import {
+  DeviceRecord,
+  SoftwareConfiguration,
+  createDevice,
+  getDevice,
+  getSoftwareConfiguration,
+  listDevices,
+  updateRuntime,
+  updateSoftwareConfiguration,
+} from "./api";
+
+type SpeedSample = {
+  timeMs: number;
+  speedRpm: number;
+};
+
+const MAX_CHART_SAMPLES = 80;
 
 export function App() {
   const [devices, setDevices] = useState<DeviceRecord[]>([]);
@@ -11,22 +27,66 @@ export function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [speedHistory, setSpeedHistory] = useState<SpeedSample[]>([]);
+  const [softwareConfiguration, setSoftwareConfiguration] = useState<SoftwareConfiguration>({
+    simulation_step_ms: 100,
+  });
+  const [simulationStepMsInput, setSimulationStepMsInput] = useState(100);
 
   const selectedDevice = devices.find((device) => device.id === selectedDeviceId) ?? null;
 
   useEffect(() => {
-    void refreshDevices();
+    void initializeData();
   }, []);
+
+  useEffect(() => {
+    if (!selectedDeviceId) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshSelectedDevice(selectedDeviceId);
+    }, 400);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [selectedDeviceId]);
 
   useEffect(() => {
     if (!selectedDevice) {
       return;
     }
 
+    // Only initialize editable form fields when switching the selected device.
+    // Do not overwrite user input on each telemetry poll.
     setSpeedReferencePct(selectedDevice.runtime.speed_reference_pct);
     setAccelerationTimeS(selectedDevice.runtime.acceleration_time_s);
     setDecelerationTimeS(selectedDevice.runtime.deceleration_time_s);
-  }, [selectedDevice]);
+  }, [selectedDeviceId]);
+
+  useEffect(() => {
+    if (!selectedDevice) {
+      return;
+    }
+
+    setSpeedHistory((current) => {
+      const nextSample: SpeedSample = {
+        timeMs: Date.now(),
+        speedRpm: selectedDevice.telemetry.speed_rpm,
+      };
+      const nextHistory = [...current, nextSample];
+      return nextHistory.slice(-MAX_CHART_SAMPLES);
+    });
+  }, [selectedDevice?.telemetry.speed_rpm, selectedDeviceId]);
+
+  useEffect(() => {
+    setSpeedHistory([]);
+  }, [selectedDeviceId]);
+
+  async function initializeData() {
+    await Promise.all([refreshDevices(), refreshSoftwareConfiguration()]);
+  }
 
   async function refreshDevices() {
     setIsLoading(true);
@@ -40,6 +100,25 @@ export function App() {
       setErrorMessage(error instanceof Error ? error.message : "Failed to load devices");
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function refreshSelectedDevice(deviceId: string) {
+    try {
+      const nextDevice = await getDevice(deviceId);
+      replaceDevice(nextDevice);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to refresh telemetry");
+    }
+  }
+
+  async function refreshSoftwareConfiguration() {
+    try {
+      const nextConfiguration = await getSoftwareConfiguration();
+      setSoftwareConfiguration(nextConfiguration);
+      setSimulationStepMsInput(nextConfiguration.simulation_step_ms);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to load software config");
     }
   }
 
@@ -118,19 +197,18 @@ export function App() {
     }
   }
 
-  async function handleStep() {
-    if (!selectedDevice) {
-      return;
-    }
-
+  async function handleSaveSoftwareConfiguration(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setIsMutating(true);
     setErrorMessage(null);
 
     try {
-      const steppedDevice = await stepDevice(selectedDevice.id, 0.25);
-      replaceDevice(steppedDevice);
+      const nextConfiguration = await updateSoftwareConfiguration({
+        simulation_step_ms: simulationStepMsInput,
+      });
+      setSoftwareConfiguration(nextConfiguration);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Failed to step simulation");
+      setErrorMessage(error instanceof Error ? error.message : "Failed to update software config");
     } finally {
       setIsMutating(false);
     }
@@ -184,8 +262,8 @@ export function App() {
         <p className="eyebrow">Open VFD Simulator</p>
         <h1>Desktop simulator scaffold for VFD and motor behavior.</h1>
         <p className="summary">
-          The first connected UI can create device instances, update basic VFD runtime
-          parameters, and manually advance the backend simulation.
+          The simulation now runs continuously in the backend using a configurable simulation
+          step. The UI updates telemetry in near real-time.
         </p>
       </section>
 
@@ -202,6 +280,33 @@ export function App() {
             Create Device
           </button>
         </div>
+      </section>
+
+      <section className="panel config-panel">
+        <h2>Software Configuration</h2>
+        <p className="caption">Global simulation settings for the local backend runtime.</p>
+        <form className="config-form" onSubmit={handleSaveSoftwareConfiguration}>
+          <label>
+            <span>Simulation Step (ms)</span>
+            <input
+              type="number"
+              min={10}
+              max={2000}
+              step={10}
+              value={simulationStepMsInput}
+              onChange={(event) => setSimulationStepMsInput(Number(event.target.value))}
+            />
+          </label>
+          <div className="button-row">
+            <button type="submit" disabled={isMutating}>
+              Save
+            </button>
+            <button type="button" disabled={isMutating} onClick={() => void refreshSoftwareConfiguration()}>
+              Reload
+            </button>
+            <span className="badge">Active: {softwareConfiguration.simulation_step_ms} ms</span>
+          </div>
+        </form>
       </section>
 
       <section className="grid">
@@ -270,9 +375,6 @@ export function App() {
                 <button type="button" onClick={() => void handleCommand("stopped")} disabled={isMutating}>
                   Stop
                 </button>
-                <button type="button" onClick={() => void handleStep()} disabled={isMutating}>
-                  Step +0.25s
-                </button>
                 <button type="button" onClick={() => void handleFaultReset()} disabled={isMutating}>
                   Reset Fault
                 </button>
@@ -286,14 +388,18 @@ export function App() {
         <article className="panel telemetry-panel">
           <h2>Basic Telemetry</h2>
           {selectedDevice ? (
-            <ul>
-              {telemetry.map((item) => (
-                <li key={item.label}>
-                  <span>{item.label}</span>
-                  <strong>{item.value}</strong>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul>
+                {telemetry.map((item) => (
+                  <li key={item.label}>
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                  </li>
+                ))}
+              </ul>
+              <h3 className="chart-title">Motor Speed Chart (rpm)</h3>
+              <MotorSpeedChart samples={speedHistory} />
+            </>
           ) : (
             <p className="caption">Telemetry appears after selecting a device.</p>
           )}
@@ -302,5 +408,51 @@ export function App() {
 
       {errorMessage ? <p className="error-banner">{errorMessage}</p> : null}
     </main>
+  );
+}
+
+function MotorSpeedChart({ samples }: { samples: SpeedSample[] }) {
+  const width = 840;
+  const height = 220;
+  const padding = 24;
+
+  if (samples.length < 2) {
+    return <p className="caption">Collecting speed samples...</p>;
+  }
+
+  const minSpeed = Math.min(...samples.map((sample) => sample.speedRpm));
+  const maxSpeed = Math.max(...samples.map((sample) => sample.speedRpm));
+  const speedRange = Math.max(maxSpeed - minSpeed, 1);
+
+  const points = samples
+    .map((sample, index) => {
+      const x = padding + (index / (samples.length - 1)) * (width - padding * 2);
+      const y =
+        height -
+        padding -
+        ((sample.speedRpm - minSpeed) / speedRange) * (height - padding * 2);
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="speed-chart" role="img" aria-label="Motor speed trend chart">
+      <rect x={0} y={0} width={width} height={height} rx={14} className="speed-chart-bg" />
+      <line
+        x1={padding}
+        y1={height - padding}
+        x2={width - padding}
+        y2={height - padding}
+        className="speed-chart-axis"
+      />
+      <line x1={padding} y1={padding} x2={padding} y2={height - padding} className="speed-chart-axis" />
+      <polyline fill="none" points={points} className="speed-chart-line" />
+      <text x={padding} y={padding - 6} className="speed-chart-label">
+        Max {maxSpeed.toFixed(1)} rpm
+      </text>
+      <text x={padding} y={height - 6} className="speed-chart-label">
+        Min {minSpeed.toFixed(1)} rpm
+      </text>
+    </svg>
   );
 }

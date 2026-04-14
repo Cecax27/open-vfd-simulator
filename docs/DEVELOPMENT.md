@@ -88,9 +88,10 @@ Open:
 1. Create a device in the UI.
 2. Set speed reference and ramp times.
 3. Click `Run`.
-4. Click `Step +0.25s` multiple times.
-5. Confirm telemetry changes (frequency, voltage, current, speed, torque).
-6. Click `Stop` and verify values settle.
+4. Confirm telemetry changes automatically over time (frequency, voltage, current, speed, torque).
+5. Change software configuration `Simulation Step (ms)` and click `Save`.
+6. Confirm motor speed chart updates continuously.
+7. Click `Stop` and verify values settle.
 
 ### 6) Run Backend Tests
 
@@ -101,5 +102,6 @@ cd backend
 
 ## Notes
 
-- In the current scaffold, frontend live data is fetched from REST endpoints and manual step calls.
-- Continuous background simulation and WebSocket telemetry are planned next.
+- The backend now runs simulation continuously in a background loop.
+- The frontend currently uses periodic REST polling for live updates.
+- WebSocket telemetry is still planned as a future improvement.

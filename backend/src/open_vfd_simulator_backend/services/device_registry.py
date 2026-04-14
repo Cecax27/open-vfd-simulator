@@ -108,5 +108,10 @@ class DeviceRegistry:
             self._devices[device_id] = updated_device
             return updated_device
 
+    def step_all_devices(self, delta_time_s: float) -> None:
+        with self._lock:
+            for device_id, device in list(self._devices.items()):
+                self._devices[device_id] = simulator.step(device, delta_time_s)
+
 
 registry = DeviceRegistry()

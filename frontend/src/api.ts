@@ -54,6 +54,10 @@ export interface DeviceRecord {
   telemetry: TelemetrySnapshot;
 }
 
+export interface SoftwareConfiguration {
+  simulation_step_ms: number;
+}
+
 const API_BASE_URL = "http://127.0.0.1:8000";
 
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -76,6 +80,10 @@ export function listDevices(): Promise<DeviceRecord[]> {
   return apiRequest<DeviceRecord[]>("/api/devices");
 }
 
+export function getDevice(deviceId: string): Promise<DeviceRecord> {
+  return apiRequest<DeviceRecord>(`/api/devices/${deviceId}`);
+}
+
 export function createDevice(name: string): Promise<DeviceRecord> {
   return apiRequest<DeviceRecord>("/api/devices", {
     method: "POST",
@@ -93,9 +101,15 @@ export function updateRuntime(
   });
 }
 
-export function stepDevice(deviceId: string, deltaTimeS: number): Promise<DeviceRecord> {
-  return apiRequest<DeviceRecord>(`/api/devices/${deviceId}/step`, {
-    method: "POST",
-    body: JSON.stringify({ delta_time_s: deltaTimeS }),
+export function getSoftwareConfiguration(): Promise<SoftwareConfiguration> {
+  return apiRequest<SoftwareConfiguration>("/api/configuration");
+}
+
+export function updateSoftwareConfiguration(
+  payload: Partial<SoftwareConfiguration>,
+): Promise<SoftwareConfiguration> {
+  return apiRequest<SoftwareConfiguration>("/api/configuration", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
   });
 }

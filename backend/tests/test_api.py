@@ -27,6 +27,19 @@ def test_cors_preflight_devices() -> None:
     assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"
 
 
+def test_configuration_default_and_update() -> None:
+    get_response = client.get("/api/configuration")
+    assert get_response.status_code == 200
+    assert get_response.json()["simulation_step_ms"] == 100
+
+    patch_response = client.patch(
+        "/api/configuration",
+        json={"simulation_step_ms": 50},
+    )
+    assert patch_response.status_code == 200
+    assert patch_response.json()["simulation_step_ms"] == 50
+
+
 def test_create_device() -> None:
     response = client.post(
         "/api/devices",

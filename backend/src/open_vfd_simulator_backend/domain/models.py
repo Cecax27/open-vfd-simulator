@@ -92,3 +92,11 @@ class DeviceConfigurationUpdateRequest(BaseModel):
 
 class SimulationStepRequest(BaseModel):
     delta_time_s: float = Field(default=0.1, gt=0, le=10)
+
+
+class SoftwareConfiguration(BaseModel):
+    simulation_step_ms: int = Field(default=100, ge=10, le=2000)
+
+
+class SoftwareConfigurationUpdateRequest(BaseModel):
+    simulation_step_ms: int | None = Field(default=None, ge=10, le=2000)
