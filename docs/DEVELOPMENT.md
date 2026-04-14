@@ -21,12 +21,12 @@
 - React + TypeScript
 - Electron
 
-## Run Locally (Backend + Frontend)
+## Run Locally (Backend + Electron)
 
 This project currently runs as two local processes during development:
 
 - Backend API (FastAPI) on `http://127.0.0.1:8000`
-- Frontend (Vite + React) on `http://127.0.0.1:5173`
+- Electron desktop shell
 
 ### 1) Prerequisites
 
@@ -70,28 +70,57 @@ Quick checks:
 - Health endpoint: `http://127.0.0.1:8000/health`
 - API docs: `http://127.0.0.1:8000/docs`
 
-### 4) Start the Frontend
+### 4) Start Electron Desktop Shell
 
 In terminal 2:
 
 ```bash
 cd frontend
-pnpm dev --host 127.0.0.1 --port 5173
+pnpm dev:electron
 ```
 
-Open:
+If Electron fails with `Electron failed to install correctly`, your package manager likely skipped Electron build scripts. Run:
 
-- `http://127.0.0.1:5173`
+```bash
+cd frontend
+node node_modules/electron/install.js
+pnpm dev:electron
+```
+
+If `pnpm` reports ignored builds, you can also run `pnpm approve-builds` and allow Electron.
+
+Use the Electron app menu for:
+
+- Project -> New Project
+- Project -> Open Project
+- Project -> Save
+- Project -> Save As
+- View -> Devices
+- View -> Program Settings
+
+Startup flow:
+
+- App opens on Home screen.
+- Home screen shows recent projects and a button to create a new project.
+- Use `Close Project` to return from an open project to Home.
+
+Unsaved changes flow:
+
+- On `New`, `Open`, or `Close Project`, if current project has unsaved changes, Electron shows a message box:
+	- Save
+	- Don't Save
+	- Cancel
 
 ### 5) Smoke Test the Full Flow
 
 1. Create a device in the UI.
-2. Set speed reference and ramp times.
-3. Click `Run`.
-4. Confirm telemetry changes automatically over time (frequency, voltage, current, speed, torque).
-5. Change software configuration `Simulation Step (ms)` and click `Save`.
-6. Confirm motor speed chart updates continuously.
-7. Click `Stop` and verify values settle.
+2. Open the device configuration page and edit runtime values.
+3. Save the device configuration.
+4. Set runtime state to `Run` and confirm telemetry changes automatically.
+5. Go to Program Settings and change `Simulation Step (ms)` and language.
+6. Save the project to an `.ovfd` file.
+7. Open the saved project and confirm devices and settings are restored.
+8. Make a change, click `New` or `Close Project`, and confirm the unsaved-changes prompt appears.
 
 ### 6) Run Backend Tests
 
@@ -105,3 +134,4 @@ cd backend
 - The backend now runs simulation continuously in a background loop.
 - The frontend currently uses periodic REST polling for live updates.
 - WebSocket telemetry is still planned as a future improvement.
+- Project open/save is implemented through Electron IPC and local `.ovfd` files.

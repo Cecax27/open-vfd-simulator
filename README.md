@@ -43,8 +43,28 @@ Initial project scaffolding is in progress. The first implementation milestone e
 - Backend domain model for devices and simulation state
 - API endpoints for device management
 - Simulation adapter contracts for motulator integration
-- Electron + React application shell
+- Electron + React application shell with project menu and page navigation
 - Core architecture and development documentation
+
+## UI Flow
+
+- Home page: default startup screen with recent projects and quick actions.
+- Devices page: initial project view to list and create devices.
+- Device configuration page: opened when creating or selecting a device.
+- Program settings page: software configuration (simulation step) and language.
+- Motor speed chart: live trend for selected device.
+- Project menu: New, Open, Save, Save As, Close Project.
+
+## Project Persistence
+
+Projects are saved to local `.ovfd` files through Electron dialogs.
+
+Saved project data includes:
+
+- Project name
+- Language
+- Software configuration (simulation step)
+- Device definitions and runtime configuration
 
 ## Roadmap
 
@@ -52,6 +72,7 @@ Initial project scaffolding is in progress. The first implementation milestone e
 
 ## Development
 
-See `docs/` for implementation details. For local startup instructions (backend + frontend), use:
+See `docs/` for implementation details. For local startup instructions (backend + frontend + electron), use:
 
 - `docs/DEVELOPMENT.md` -> "Run Locally (Backend + Frontend)"
+- `docs/PROJECT_FORMAT.md` -> project save file structure

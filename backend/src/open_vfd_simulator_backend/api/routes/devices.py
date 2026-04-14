@@ -55,3 +55,15 @@ def step_device(device_id: str, payload: SimulationStepRequest) -> DeviceRecord:
     if device is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Device not found")
     return device
+
+
+@router.delete("/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_device(device_id: str) -> None:
+    deleted = registry.delete_device(device_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Device not found")
+
+
+@router.post("/reset", status_code=status.HTTP_204_NO_CONTENT)
+def reset_devices() -> None:
+    registry.clear_devices()

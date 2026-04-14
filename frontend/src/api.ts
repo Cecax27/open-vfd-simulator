@@ -73,7 +73,16 @@ async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(`Request failed with status ${response.status}`);
   }
 
-  return (await response.json()) as T;
+  if (response.status === 204 || response.headers.get("content-length") === "0") {
+    return undefined as T;
+  }
+
+  const text = await response.text();
+  if (!text) {
+    return undefined as T;
+  }
+
+  return JSON.parse(text) as T;
 }
 
 export function listDevices(): Promise<DeviceRecord[]> {
@@ -88,6 +97,32 @@ export function createDevice(name: string): Promise<DeviceRecord> {
   return apiRequest<DeviceRecord>("/api/devices", {
     method: "POST",
     body: JSON.stringify({ name }),
+  });
+}
+
+export function createDeviceWithConfiguration(payload: {
+  name: string;
+  template_key?: string;
+  motor?: MotorParameters;
+  load?: LoadParameters;
+}): Promise<DeviceRecord> {
+  return apiRequest<DeviceRecord>("/api/devices", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateDeviceConfiguration(
+  deviceId: string,
+  payload: {
+    name?: string;
+    motor?: MotorParameters;
+    load?: LoadParameters;
+  },
+): Promise<DeviceRecord> {
+  return apiRequest<DeviceRecord>(`/api/devices/${deviceId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
   });
 }
 
@@ -111,5 +146,11 @@ export function updateSoftwareConfiguration(
   return apiRequest<SoftwareConfiguration>("/api/configuration", {
     method: "PATCH",
     body: JSON.stringify(payload),
+  });
+}
+
+export async function resetDevices(): Promise<void> {
+  await apiRequest<void>("/api/devices/reset", {
+    method: "POST",
   });
 }

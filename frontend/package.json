@@ -5,18 +5,25 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:web": "vite --host 127.0.0.1 --port 5173",
+    "dev:electron": "electron electron/main.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "i18next": "^26.0.4",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-i18next": "^17.0.2",
+    "react-router-dom": "^7.14.1"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.2.2",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "electron": "^31.7.7",
+    "tailwindcss": "^4.2.2",
     "typescript": "^5.5.4",
     "vite": "^5.4.0"
   }

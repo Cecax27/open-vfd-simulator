@@ -113,5 +113,16 @@ class DeviceRegistry:
             for device_id, device in list(self._devices.items()):
                 self._devices[device_id] = simulator.step(device, delta_time_s)
 
+    def delete_device(self, device_id: str) -> bool:
+        with self._lock:
+            if device_id not in self._devices:
+                return False
+            del self._devices[device_id]
+            return True
+
+    def clear_devices(self) -> None:
+        with self._lock:
+            self._devices.clear()
+
 
 registry = DeviceRegistry()

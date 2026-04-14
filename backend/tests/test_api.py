@@ -118,3 +118,29 @@ def test_fault_reset_clears_fault_code() -> None:
     assert reset_response.status_code == 200
     assert reset_body["runtime"]["status"] == "stopped"
     assert reset_body["telemetry"]["fault_code"] == 0
+
+
+def test_delete_device() -> None:
+    create_response = client.post(
+        "/api/devices",
+        json={"name": "Drive To Delete"},
+    )
+    device_id = create_response.json()["id"]
+
+    delete_response = client.delete(f"/api/devices/{device_id}")
+    get_response = client.get(f"/api/devices/{device_id}")
+
+    assert delete_response.status_code == 204
+    assert get_response.status_code == 404
+
+
+def test_reset_devices() -> None:
+    client.post("/api/devices", json={"name": "Drive A"})
+    client.post("/api/devices", json={"name": "Drive B"})
+
+    reset_response = client.post("/api/devices/reset")
+    list_response = client.get("/api/devices")
+
+    assert reset_response.status_code == 204
+    assert list_response.status_code == 200
+    assert list_response.json() == []
