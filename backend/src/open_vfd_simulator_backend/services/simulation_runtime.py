@@ -52,6 +52,9 @@ class SimulationRuntime:
             await self._apply_opcua_inputs()
             registry.step_all_devices(delta_time_s)
 
+            for device in registry.list_devices():
+                await opcua_client_service.publish_device_telemetry(device)
+
             try:
                 await asyncio.wait_for(self._stop_event.wait(), timeout=delta_time_s)
             except asyncio.TimeoutError:

@@ -36,6 +36,7 @@ export interface RuntimeCommand {
 export interface DeviceOpcUaMapping {
   speed_reference_node_id: string | null;
   run_stop_node_id: string | null;
+  telemetry_node_ids: Record<string, string>;
 }
 
 export interface TelemetrySnapshot {
@@ -79,6 +80,7 @@ export interface OpcUaBrowseItem {
   node_id: string;
   display_name: string;
   node_class: string;
+  data_type: string | null;
 }
 
 export interface OpcUaBrowseResponse {

@@ -306,6 +306,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const status = await testOpcUaConnection();
       setOpcUaStatus(status);
+      if (status.state === "connected") {
+        const browseResult = await browseOpcUa("i=84");
+        setOpcUaBrowse(browseResult);
+      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Failed to test OPC UA connection");
     } finally {
@@ -334,6 +338,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       opcua: project.softwareConfiguration.opcua,
     });
     setConfiguration(project.softwareConfiguration);
+    setOpcUaBrowse(null);
 
     for (const device of project.devices) {
       const created = await createDeviceWithConfiguration({
@@ -453,6 +458,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setProjectName("Untitled Project");
       setProjectPath(null);
       setProjectDirty(false);
+      setOpcUaBrowse(null);
       navigate("/");
     } finally {
       setIsMutating(false);
@@ -541,6 +547,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIsMutating(true);
     setErrorMessage(null);
     try {
+      let savedDevice: DeviceRecord | null = null;
+
       if (editMode === "create") {
         const created = await createDeviceWithConfiguration({
           name: draft.name,
@@ -548,7 +556,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           load: draft.load,
           opcua_mapping: draft.opcua_mapping,
         });
-        await updateRuntime(created.id, draft.runtime);
+        savedDevice = await updateRuntime(created.id, draft.runtime);
         setSelectedDeviceId(created.id);
       } else if (draft.id) {
         await updateDeviceConfiguration(draft.id, {
@@ -557,11 +565,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
           load: draft.load,
           opcua_mapping: draft.opcua_mapping,
         });
-        await updateRuntime(draft.id, draft.runtime);
+        savedDevice = await updateRuntime(draft.id, draft.runtime);
       }
 
       await refreshDevices();
-      navigate("/devices");
+
+      if (savedDevice) {
+        setEditMode("edit");
+        setDraft({
+          id: savedDevice.id,
+          name: savedDevice.name,
+          runtime: {
+            speed_reference_pct: savedDevice.runtime.speed_reference_pct,
+            acceleration_time_s: savedDevice.runtime.acceleration_time_s,
+            deceleration_time_s: savedDevice.runtime.deceleration_time_s,
+            status: savedDevice.runtime.status,
+            operation_mode: savedDevice.runtime.operation_mode,
+          },
+          motor: savedDevice.motor,
+          load: savedDevice.load,
+          opcua_mapping: savedDevice.opcua_mapping,
+        });
+      }
+
       setProjectDirty(true);
       setNotice(t("saved"));
     } catch (error) {

@@ -112,6 +112,7 @@ export function defaultDraft(name = "Drive 1"): DeviceDraft {
     opcua_mapping: {
       speed_reference_node_id: null,
       run_stop_node_id: null,
+      telemetry_node_ids: {},
     },
   };
 }
@@ -194,6 +195,14 @@ export function parseSavedProject(content: string): SavedProject {
           typeof device.opcua_mapping?.run_stop_node_id === "string"
             ? device.opcua_mapping.run_stop_node_id
             : null,
+        telemetry_node_ids:
+          device.opcua_mapping?.telemetry_node_ids && typeof device.opcua_mapping.telemetry_node_ids === "object"
+            ? Object.fromEntries(
+                Object.entries(device.opcua_mapping.telemetry_node_ids).filter(
+                  ([key, value]) => typeof key === "string" && typeof value === "string" && value.trim(),
+                ),
+              )
+            : {},
       },
     })),
   };

@@ -10,7 +10,9 @@ import { DriveMetricsPanel } from "../components/drive/DriveMetricsPanel";
 import { DriveTrendChart } from "../components/drive/DriveTrendChart";
 import { useDriveTelemetryFeed } from "../components/drive/useDriveTelemetryFeed";
 import { Button } from "../components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { useAppContext } from "../context/AppContext";
+import { OPCUA_TELEMETRY_SPECS, getTelemetryValueByKey } from "../lib/opcuaTelemetry";
 
 export function DeviceConfigPage() {
   const { t } = useTranslation();
@@ -23,6 +25,7 @@ export function DeviceConfigPage() {
     saveDeviceDraft,
     selectedDevice,
     configuration,
+    opcUaBrowse,
   } = useAppContext();
   const [isChartPaused, setIsChartPaused] = useState(false);
   const { trendSamples, logEntries } = useDriveTelemetryFeed(selectedDevice, isChartPaused);
@@ -143,6 +146,13 @@ export function DeviceConfigPage() {
             loadInertiaLabel={t("loadInertia")}
             opcuaSpeedReferenceNodeLabel={t("opcuaSpeedReferenceNode")}
             opcuaRunStopNodeLabel={t("opcuaRunStopNode")}
+            opcUaVariables={opcUaBrowse?.items ?? []}
+            opcuaTelemetryMappingLabel={t("opcuaTelemetryMapping")}
+            expectedTypeLabel={t("opcuaExpectedType")}
+            availableOpcVariablesLabel={t("opcuaAvailableVariables")}
+            telemetryNodePlaceholder={t("opcuaTelemetryNodePlaceholder")}
+            telemetryVariableLabel={(labelKey) => t(labelKey)}
+            expectedTypeTooltip={(expectedType) => t("opcuaExpectedTypeTooltip", { type: expectedType })}
           />
         </div>
 
@@ -163,6 +173,37 @@ export function DeviceConfigPage() {
             temperatureLabel={t("temperature")}
           />
           <DriveEventLog title={t("eventLog")} emptyLabel={t("noLogYet")} entries={logEntries} />
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle>{t("telemetryAvailableData")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-slate-500">
+                      <th className="px-2 py-2 font-medium">{t("telemetryVariable")}</th>
+                      <th className="px-2 py-2 font-medium">{t("telemetryValue")}</th>
+                      <th className="px-2 py-2 font-medium">{t("telemetryUnit")}</th>
+                      <th className="px-2 py-2 font-medium">{t("opcuaMappedNode")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {OPCUA_TELEMETRY_SPECS.map((spec) => (
+                      <tr key={spec.key} className="border-b border-slate-100 last:border-0">
+                        <td className="px-2 py-2 text-slate-700">{t(spec.labelKey)}</td>
+                        <td className="px-2 py-2 text-slate-900">{String(getTelemetryValueByKey(selectedDevice, spec.key))}</td>
+                        <td className="px-2 py-2 text-slate-600">{spec.unitKey ? t(spec.unitKey) : "-"}</td>
+                        <td className="px-2 py-2 text-slate-600">
+                          {selectedDevice?.opcua_mapping.telemetry_node_ids[spec.key] ?? "-"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </section>

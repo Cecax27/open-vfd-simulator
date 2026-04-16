@@ -3,7 +3,9 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 
 import { LoadType } from "../../api";
+import type { OpcUaBrowseItem } from "../../api";
 import type { DeviceDraft } from "../../types";
+import { OPCUA_TELEMETRY_SPECS } from "../../lib/opcuaTelemetry";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Card, CardHeader, CardTitle } from "../ui/card";
@@ -24,6 +26,13 @@ type DriveAdvancedSettingsProps = {
   loadInertiaLabel: string;
   opcuaSpeedReferenceNodeLabel: string;
   opcuaRunStopNodeLabel: string;
+  opcUaVariables: OpcUaBrowseItem[];
+  opcuaTelemetryMappingLabel: string;
+  expectedTypeLabel: string;
+  availableOpcVariablesLabel: string;
+  telemetryNodePlaceholder: string;
+  telemetryVariableLabel: (labelKey: string) => string;
+  expectedTypeTooltip: (expectedType: string) => string;
 };
 
 export function DriveAdvancedSettings({
@@ -41,8 +50,17 @@ export function DriveAdvancedSettings({
   loadInertiaLabel,
   opcuaSpeedReferenceNodeLabel,
   opcuaRunStopNodeLabel,
+  opcUaVariables,
+  opcuaTelemetryMappingLabel,
+  expectedTypeLabel,
+  availableOpcVariablesLabel,
+  telemetryNodePlaceholder,
+  telemetryVariableLabel,
+  expectedTypeTooltip,
 }: DriveAdvancedSettingsProps) {
   const [open, setOpen] = useState(false);
+  const commandNodeSuggestionsId = "opcua-command-node-options";
+  const telemetryNodeSuggestionsId = "opcua-telemetry-node-options";
 
   return (
     <Card>
@@ -157,11 +175,19 @@ export function DriveAdvancedSettings({
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <datalist id={commandNodeSuggestionsId}>
+                  {opcUaVariables.map((item) => (
+                    <option key={`cmd-${item.node_id}`} value={item.node_id}>
+                      {item.display_name}
+                    </option>
+                  ))}
+                </datalist>
                 <label className="block space-y-1">
                   <span className="text-sm text-slate-600">{opcuaSpeedReferenceNodeLabel}</span>
                   <input
                     value={draft.opcua_mapping.speed_reference_node_id ?? ""}
                     placeholder="ns=2;s=Drive1/SpeedRef"
+                    list={commandNodeSuggestionsId}
                     onChange={(event) =>
                       onDraftChange({
                         ...draft,
@@ -180,6 +206,7 @@ export function DriveAdvancedSettings({
                   <input
                     value={draft.opcua_mapping.run_stop_node_id ?? ""}
                     placeholder="ns=2;s=Drive1/RunStop"
+                    list={commandNodeSuggestionsId}
                     onChange={(event) =>
                       onDraftChange({
                         ...draft,
@@ -192,6 +219,64 @@ export function DriveAdvancedSettings({
                     className="w-full rounded-md border border-slate-300 px-3 py-2"
                   />
                 </label>
+              </div>
+
+              <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="text-sm font-semibold text-slate-800">{opcuaTelemetryMappingLabel}</h4>
+                  <span className="text-xs text-slate-500">{availableOpcVariablesLabel}: {opcUaVariables.length}</span>
+                </div>
+                <datalist id={telemetryNodeSuggestionsId}>
+                  {opcUaVariables.map((item) => (
+                    <option key={item.node_id} value={item.node_id}>
+                      {item.display_name}
+                    </option>
+                  ))}
+                </datalist>
+                <div className="space-y-2">
+                  {OPCUA_TELEMETRY_SPECS.map((spec) => (
+                    <div
+                      key={spec.key}
+                      className="grid grid-cols-1 items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-2 sm:grid-cols-[minmax(180px,1fr),130px,1fr]"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-slate-700">{telemetryVariableLabel(spec.labelKey)}</span>
+                        <span
+                          className="cursor-help rounded-full border border-slate-300 px-1.5 text-xs text-slate-600"
+                          title={expectedTypeTooltip(spec.expectedType)}
+                        >
+                          i
+                        </span>
+                      </div>
+                      <span className="text-xs text-slate-500">
+                        {expectedTypeLabel}: {spec.expectedType}
+                      </span>
+                      <input
+                        value={draft.opcua_mapping.telemetry_node_ids[spec.key] ?? ""}
+                        list={telemetryNodeSuggestionsId}
+                        placeholder={telemetryNodePlaceholder}
+                        onChange={(event) => {
+                          const nextNode = event.target.value.trim();
+                          const nextMap = { ...draft.opcua_mapping.telemetry_node_ids };
+                          if (nextNode) {
+                            nextMap[spec.key] = nextNode;
+                          } else {
+                            delete nextMap[spec.key];
+                          }
+
+                          onDraftChange({
+                            ...draft,
+                            opcua_mapping: {
+                              ...draft.opcua_mapping,
+                              telemetry_node_ids: nextMap,
+                            },
+                          });
+                        }}
+                        className="w-full rounded-md border border-slate-300 px-3 py-2"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </form>
           </CollapsibleContent>

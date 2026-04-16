@@ -22,7 +22,6 @@ export function OpcUaPage() {
   const [timeoutSeconds, setTimeoutSeconds] = useState(
     configuration.opcua.request_timeout_s,
   );
-  const [browseNodeId, setBrowseNodeId] = useState("i=84");
 
   const statusLabel = useMemo(() => {
     if (opcUaStatus.state === "connected") return t("connected");
@@ -90,30 +89,27 @@ export function OpcUaPage() {
         <section className="opcua-browse-block">
           <h2>{t("opcuaBrowse")}</h2>
           <div className="row-actions">
-            <input
-              value={browseNodeId}
-                onChange={(event) => setBrowseNodeId(event.target.value)}
-            placeholder="i=84"
-          />
-          <button
-            type="button"
-            onClick={() => void browseOpcUaNode(browseNodeId)}
-            disabled={isMutating}
-          >
-            {t("browse")}
-          </button>
-        </div>
-        <ul className="telemetry-list" style={{ marginTop: "10px" }}>
-          {(opcUaBrowse?.items ?? []).map((item) => (
-            <li key={item.node_id}>
-              <span>
-                {item.display_name} ({item.node_class})
-              </span>
-              <strong>{item.node_id}</strong>
-            </li>
-          ))}
-        </ul>
-      </section>)}
+            <p className="text-sm text-slate-600">{t("opcuaBrowseRootHint")}</p>
+            <button
+              type="button"
+              onClick={() => void browseOpcUaNode("i=84")}
+              disabled={isMutating}
+            >
+              {t("refresh")}
+            </button>
+          </div>
+          <ul className="telemetry-list" style={{ marginTop: "10px" }}>
+            {(opcUaBrowse?.items ?? []).map((item) => (
+              <li key={item.node_id}>
+                <span>
+                  {item.display_name} ({item.node_class}{item.data_type ? `, ${item.data_type}` : ""})
+                </span>
+                <strong>{item.node_id}</strong>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </section>
   );
 }

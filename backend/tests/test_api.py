@@ -3,7 +3,9 @@ import asyncio
 from fastapi.testclient import TestClient
 
 from open_vfd_simulator_backend.main import app
+from open_vfd_simulator_backend.domain.models import OPCUAClientConfiguration, OPCUAWriteResponse
 from open_vfd_simulator_backend.services.device_registry import registry
+from open_vfd_simulator_backend.services.opcua_client import opcua_client_service
 from open_vfd_simulator_backend.services.simulation_runtime import simulation_runtime
 
 
@@ -177,6 +179,9 @@ def test_device_configuration_persists_opcua_mapping() -> None:
             "opcua_mapping": {
                 "speed_reference_node_id": "ns=2;s=DriveOPC/Speed",
                 "run_stop_node_id": "ns=2;s=DriveOPC/RunStop",
+                "telemetry_node_ids": {
+                    "output_frequency_hz": "ns=2;s=DriveOPC/OutFreq"
+                },
             },
         },
     )
@@ -188,6 +193,10 @@ def test_device_configuration_persists_opcua_mapping() -> None:
             "opcua_mapping": {
                 "speed_reference_node_id": "ns=2;s=DriveOPC/SpeedRef",
                 "run_stop_node_id": "ns=2;s=DriveOPC/RunStop",
+                "telemetry_node_ids": {
+                    "output_frequency_hz": "ns=2;s=DriveOPC/OutputFrequency",
+                    "command_state": "ns=2;s=DriveOPC/CommandState",
+                },
             }
         },
     )
@@ -195,6 +204,66 @@ def test_device_configuration_persists_opcua_mapping() -> None:
     assert patch_response.status_code == 200
     assert patch_response.json()["opcua_mapping"]["speed_reference_node_id"] == "ns=2;s=DriveOPC/SpeedRef"
     assert patch_response.json()["opcua_mapping"]["run_stop_node_id"] == "ns=2;s=DriveOPC/RunStop"
+    assert patch_response.json()["opcua_mapping"]["telemetry_node_ids"]["output_frequency_hz"] == "ns=2;s=DriveOPC/OutputFrequency"
+    assert patch_response.json()["opcua_mapping"]["telemetry_node_ids"]["command_state"] == "ns=2;s=DriveOPC/CommandState"
+
+
+def test_publish_device_telemetry_writes_mapped_nodes() -> None:
+    create_response = client.post(
+        "/api/devices",
+        json={
+            "name": "Drive Telemetry OPC",
+            "opcua_mapping": {
+                "telemetry_node_ids": {
+                    "output_frequency_hz": "ns=2;s=DriveOPC/OutputFrequency",
+                    "fault_state": "ns=2;s=DriveOPC/FaultState",
+                    "command_state": "ns=2;s=DriveOPC/CommandState",
+                },
+            },
+        },
+    )
+    device_id = create_response.json()["id"]
+    client.patch(
+        f"/api/devices/{device_id}/runtime",
+        json={"status": "running", "speed_reference_pct": 45},
+    )
+    client.post(f"/api/devices/{device_id}/step", json={"delta_time_s": 0.2})
+
+    device = registry.get_device(device_id)
+    assert device is not None
+
+    written_payload: dict[str, object] = {"writes": []}
+
+    async def fake_write(payload):
+        written_payload["writes"] = payload.writes
+        return OPCUAWriteResponse(written=len(payload.writes))
+
+    previous_configuration = opcua_client_service.get_configuration()
+    previous_write = opcua_client_service.write
+
+    opcua_client_service.set_configuration(
+        OPCUAClientConfiguration(
+            enabled=True,
+            endpoint_url="opc.tcp://127.0.0.1:4840",
+            request_timeout_s=2,
+        )
+    )
+    opcua_client_service.write = fake_write  # type: ignore[method-assign]
+
+    try:
+        asyncio.run(opcua_client_service.publish_device_telemetry(device))
+    finally:
+        opcua_client_service.write = previous_write
+        opcua_client_service.set_configuration(previous_configuration)
+
+    writes = written_payload["writes"]
+    assert isinstance(writes, list)
+    assert len(writes) == 3
+
+    values_by_node = {item.node_id: item.value for item in writes}
+    assert values_by_node["ns=2;s=DriveOPC/OutputFrequency"] >= 0
+    assert values_by_node["ns=2;s=DriveOPC/FaultState"] is False
+    assert values_by_node["ns=2;s=DriveOPC/CommandState"] == "running"
 
 
 def test_remote_mode_fault_when_opcua_not_configured() -> None:

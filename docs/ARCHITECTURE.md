@@ -33,7 +33,10 @@ Electron + React UI
 
 ## OPC UA Integration
 
-OPC UA acts as an **external command source**, not a telemetry output. When a device is set to `remote` operation mode, the simulation loop reads the OPC UA nodes mapped on that device at every tick and applies the received values (speed reference and run/stop) to the device runtime. The external system is the authority; the simulator follows.
+OPC UA supports two flows:
+
+- **Command input (OPC UA -> simulator runtime):** when a device is in `remote` mode, the backend reads mapped nodes (`speed_reference_node_id`, `run_stop_node_id`) before each simulation step.
+- **Telemetry output (simulator -> OPC UA):** when telemetry mappings exist in `opcua_mapping.telemetry_node_ids`, the backend writes mapped telemetry values on each simulation tick.
 
 The simulation loop runs `_apply_opcua_inputs()` before each physics step:
 
@@ -41,5 +44,21 @@ The simulation loop runs `_apply_opcua_inputs()` before each physics step:
 2. If not ready → set device to fault 2001 (remote unconfigured).
 3. If ready → read the mapped nodes and update `runtime` via the device registry.
 4. Run the physics step for all devices.
+5. Publish mapped telemetry values to OPC UA nodes (best effort per node).
 
 Devices in `local` mode are never touched by the OPC UA polling loop.
+
+Telemetry publication is independent of `local`/`remote` mode. If OPC UA is configured and telemetry nodes are mapped, telemetry writes are attempted each tick.
+
+### OPC UA Variable Explorer
+
+The frontend variable explorer refreshes from root node `i=84`, recursively traverses the address space, and keeps only `NodeClass.Variable` entries.
+
+Each listed entry includes:
+
+- `node_id`
+- `display_name`
+- `node_class`
+- `data_type` (when available)
+
+This browsed catalog is held in frontend session state only and is not persisted into project files.

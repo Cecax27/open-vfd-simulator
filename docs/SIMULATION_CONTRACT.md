@@ -23,12 +23,40 @@ The device is controlled exclusively through the REST API (`PATCH /api/devices/{
 
 The device is controlled by an external system via OPC UA. On every simulation tick the backend reads the mapped OPC UA nodes and updates the device runtime accordingly.
 
+In parallel, the simulator can publish telemetry values to OPC UA when telemetry node mappings are configured.
+
 **Requirements for remote mode to function correctly:**
 
 1. OPC UA must be enabled and have a valid `endpoint_url` configured (see `PATCH /api/opcua/configuration`).
 2. The device must have at least one node mapped in `opcua_mapping`:
    - `speed_reference_node_id`: the external OPC UA server writes a `float` representing the speed reference in percent (0–100).
    - `run_stop_node_id`: the external OPC UA server writes a `bool` (`true` = running, `false` = stopped).
+
+## OPC UA Telemetry Publishing
+
+Each device may include `opcua_mapping.telemetry_node_ids`, a dictionary where keys are telemetry variable identifiers and values are OPC UA `node_id` targets.
+
+- The simulator writes mapped values on every simulation tick.
+- Only mapped keys are written.
+- The project file stores only the node mappings selected by the user.
+- The OPC UA variable explorer cache is session-local in the frontend and is not persisted in the project file.
+
+### Supported telemetry mapping keys and recommended OPC UA types
+
+- `command_state` -> `String`
+- `fault_state` -> `Boolean`
+- `fault_code` -> `Int32`
+- `commanded_frequency_hz` -> `Float`
+- `output_frequency_hz` -> `Float`
+- `output_voltage_v` -> `Float`
+- `output_current_a` -> `Float`
+- `speed_rpm` -> `Float`
+- `electromagnetic_torque_nm` -> `Float`
+- `load_torque_nm` -> `Float`
+- `mechanical_power_w` -> `Float`
+- `estimated_temperature_c` -> `Float`
+
+Write errors on individual telemetry nodes are handled as partial failures. The simulation loop continues running and retries on subsequent ticks.
 
 **Fault 2001 — Remote Unconfigured**
 
@@ -57,6 +85,8 @@ The simulation loop runs continuously in the backend. Device telemetry is update
 - Stator, rotor, and mutual inductance
 - Motor inertia and friction
 - Load type, nominal load torque, and load inertia
+- OPC UA command mapping (`speed_reference_node_id`, `run_stop_node_id`)
+- OPC UA telemetry mapping (`telemetry_node_ids`)
 
 ## Minimum Telemetry
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class DeviceStatus(str, Enum):
@@ -67,6 +67,24 @@ class RuntimeCommand(BaseModel):
 class DeviceOpcUaMapping(BaseModel):
     speed_reference_node_id: str | None = Field(default=None, min_length=1)
     run_stop_node_id: str | None = Field(default=None, min_length=1)
+    telemetry_node_ids: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("telemetry_node_ids", mode="before")
+    @classmethod
+    def normalize_telemetry_node_ids(cls, value: object) -> dict[str, str]:
+        if not isinstance(value, dict):
+            return {}
+        normalized: dict[str, str] = {}
+        for key, node_id in value.items():
+            if not isinstance(key, str) or key not in OPCUA_TELEMETRY_VARIABLE_TYPES:
+                continue
+            if not isinstance(node_id, str):
+                continue
+            trimmed = node_id.strip()
+            if not trimmed:
+                continue
+            normalized[key] = trimmed
+        return normalized
 
 
 class OPCUAClientConfiguration(BaseModel):
@@ -86,6 +104,7 @@ class OPCUABrowseItem(BaseModel):
     node_id: str
     display_name: str
     node_class: str
+    data_type: str | None = None
 
 
 class OPCUABrowseResponse(BaseModel):
@@ -130,6 +149,22 @@ class TelemetrySnapshot(BaseModel):
     load_torque_nm: float = 0.0
     mechanical_power_w: float = 0.0
     estimated_temperature_c: float = 25.0
+
+
+OPCUA_TELEMETRY_VARIABLE_TYPES: dict[str, str] = {
+    "command_state": "String",
+    "fault_state": "Boolean",
+    "fault_code": "Int32",
+    "commanded_frequency_hz": "Float",
+    "output_frequency_hz": "Float",
+    "output_voltage_v": "Float",
+    "output_current_a": "Float",
+    "speed_rpm": "Float",
+    "electromagnetic_torque_nm": "Float",
+    "load_torque_nm": "Float",
+    "mechanical_power_w": "Float",
+    "estimated_temperature_c": "Float",
+}
 
 
 class DeviceRecord(BaseModel):
