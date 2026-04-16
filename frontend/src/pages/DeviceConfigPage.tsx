@@ -1,11 +1,16 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
-import { LoadType } from "../api";
-import { useAppContext } from "../context/AppContext";
-import { MotorSpeedChart } from "../components/MotorSpeedChart";
 import { updateRuntime } from "../api";
+import { DriveAdvancedSettings } from "../components/drive/DriveAdvancedSettings";
+import { DriveEventLog } from "../components/drive/DriveEventLog";
+import { DriveInputControls } from "../components/drive/DriveInputControls";
+import { DriveMetricsPanel } from "../components/drive/DriveMetricsPanel";
+import { DriveTrendChart } from "../components/drive/DriveTrendChart";
+import { useDriveTelemetryFeed } from "../components/drive/useDriveTelemetryFeed";
+import { Button } from "../components/ui/button";
+import { useAppContext } from "../context/AppContext";
 
 export function DeviceConfigPage() {
   const { t } = useTranslation();
@@ -17,178 +22,149 @@ export function DeviceConfigPage() {
     isMutating,
     saveDeviceDraft,
     selectedDevice,
-    speedHistory,
+    configuration,
   } = useAppContext();
+  const [isChartPaused, setIsChartPaused] = useState(false);
+  const { trendSamples, logEntries } = useDriveTelemetryFeed(selectedDevice, isChartPaused);
 
-  const telemetryRows = useMemo(() => {
-    if (!selectedDevice) {
-      return [] as Array<{ label: string; value: string }>;
+  const isOpcUaConfigured = Boolean(configuration.opcua.enabled && configuration.opcua.endpoint_url);
+  const isRemote = draft.runtime.operation_mode === "remote";
+
+  const remoteInfoRows = useMemo(
+    () => [
+      {
+        label: t("opcuaSpeedReferenceNode"),
+        value: selectedDevice?.opcua_mapping.speed_reference_node_id ?? "-",
+      },
+      {
+        label: t("opcuaRunStopNode"),
+        value: selectedDevice?.opcua_mapping.run_stop_node_id ?? "-",
+      },
+      {
+        label: t("speedReference"),
+        value: `${selectedDevice?.runtime.speed_reference_pct ?? 0}%`,
+      },
+      {
+        label: t("telemetryStatus"),
+        value: selectedDevice?.runtime.status ?? "-",
+      },
+    ],
+    [selectedDevice, t],
+  );
+
+  async function sendLocalStatus(status: "running" | "stopped") {
+    if (!draft.id) {
+      return;
     }
-    return [
-      { label: t("telemetryStatus"), value: selectedDevice.runtime.status },
-      { label: t("telemetryFault"), value: String(selectedDevice.telemetry.fault_code) },
-      { label: t("telemetryCmdFreq"), value: `${selectedDevice.telemetry.commanded_frequency_hz.toFixed(1)} Hz` },
-      { label: t("telemetryOutFreq"), value: `${selectedDevice.telemetry.output_frequency_hz.toFixed(1)} Hz` },
-      { label: t("telemetryOutVoltage"), value: `${selectedDevice.telemetry.output_voltage_v.toFixed(1)} V` },
-      { label: t("telemetryOutCurrent"), value: `${selectedDevice.telemetry.output_current_a.toFixed(2)} A` },
-      { label: t("telemetryMotorSpeed"), value: `${selectedDevice.telemetry.speed_rpm.toFixed(1)} rpm` },
-    ];
-  }, [selectedDevice, t]);
+    await updateRuntime(draft.id, { status });
+    setDraft({
+      ...draft,
+      runtime: {
+        ...draft.runtime,
+        status,
+      },
+    });
+  }
+
+  async function sendLocalSpeed(speedReferencePct: number) {
+    if (!draft.id) {
+      return;
+    }
+    await updateRuntime(draft.id, { speed_reference_pct: speedReferencePct });
+  }
+
+  async function changeOperationMode(operationMode: "local" | "remote") {
+    setDraft({
+      ...draft,
+      runtime: {
+        ...draft.runtime,
+        operation_mode: operationMode,
+      },
+    });
+
+    if (!draft.id) {
+      return;
+    }
+    await updateRuntime(draft.id, { operation_mode: operationMode });
+  }
 
   return (
-    <section className="view-page-grid">
-      <article className="panel view-page">
-        <div className="panel-head">
-          <h2>{editMode === "create" ? t("createDeviceTitle") : t("editDeviceTitle")}</h2>
-          <button onClick={() => navigate("/devices")}>{t("backToDevices")}</button>
-        </div>
-        <form className="form-grid" onSubmit={saveDeviceDraft}>
-          <label>
-            <span>{t("name")}</span>
-            <input
-              value={draft.name}
-              onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-            />
-          </label>
-          <label>
-            <span>{t("speedReference")}</span>
-            <input
-              type="number"
-              min={0}
-              max={100}
-              value={draft.runtime.speed_reference_pct}
-              onChange={(event) =>
-                setDraft({
-                  ...draft,
-                  runtime: { ...draft.runtime, speed_reference_pct: Number(event.target.value) },
-                })
-              }
-            />
-          </label>
-          <label>
-            <span>{t("acceleration")}</span>
-            <input
-              type="number"
-              min={0.1}
-              step={0.1}
-              value={draft.runtime.acceleration_time_s}
-              onChange={(event) =>
-                setDraft({
-                  ...draft,
-                  runtime: { ...draft.runtime, acceleration_time_s: Number(event.target.value) },
-                })
-              }
-            />
-          </label>
-          <label>
-            <span>{t("deceleration")}</span>
-            <input
-              type="number"
-              min={0.1}
-              step={0.1}
-              value={draft.runtime.deceleration_time_s}
-              onChange={(event) =>
-                setDraft({
-                  ...draft,
-                  runtime: { ...draft.runtime, deceleration_time_s: Number(event.target.value) },
-                })
-              }
-            />
-          </label>
-          <label>
-            <span>{t("loadType")}</span>
-            <select
-              value={draft.load.load_type}
-              onChange={(event) =>
-                setDraft({
-                  ...draft,
-                  load: { ...draft.load, load_type: event.target.value as LoadType },
-                })
-              }
-            >
-              <option value="constant_torque">{t("constantTorque")}</option>
-              <option value="fan">{t("fan")}</option>
-            </select>
-          </label>
-          <label>
-            <span>{t("nominalLoadTorque")}</span>
-            <input
-              type="number"
-              min={0}
-              step={0.1}
-              value={draft.load.nominal_load_torque_nm}
-              onChange={(event) =>
-                setDraft({
-                  ...draft,
-                  load: { ...draft.load, nominal_load_torque_nm: Number(event.target.value) },
-                })
-              }
-            />
-          </label>
-          <label>
-            <span>{t("loadInertia")}</span>
-            <input
-              type="number"
-              min={0}
-              step={0.001}
-              value={draft.load.load_inertia_kgm2}
-              onChange={(event) =>
-                setDraft({
-                  ...draft,
-                  load: { ...draft.load, load_inertia_kgm2: Number(event.target.value) },
-                })
-              }
-            />
-          </label>
-          <div className="row-actions">
-            <button type="submit" disabled={isMutating}>
-              {t("saveDevice")}
-            </button>
-            {editMode === "edit" && draft.id ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => void updateRuntime(draft.id!, { status: "running" })}
-                >
-                  {t("run")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void updateRuntime(draft.id!, { status: "stopped" })}
-                >
-                  {t("stop")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void updateRuntime(draft.id!, { fault_reset: true })}
-                >
-                  {t("resetFault")}
-                </button>
-              </>
-            ) : null}
-          </div>
-        </form>
-      </article>
+    <section className="flex min-w-full flex-col gap-4 px-2 pb-2">
+      <header className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+        <Button type="submit" form="drive-parameter-form" disabled={isMutating}>
+          {t("saveDevice")}
+        </Button>
+        <h2 className="text-lg font-semibold tracking-tight">Drive parameter set</h2>
+        <Button type="button" variant="outline" onClick={() => navigate("/devices")}>
+          {t("backToDevices")}
+        </Button>
+      </header>
 
-      <article className="panel view-page">
-        <h2>{t("telemetryTitle")}</h2>
-        {selectedDevice ? (
-          <>
-            <ul className="telemetry-list">
-              {telemetryRows.map((row) => (
-                <li key={row.label}>
-                  <span>{row.label}</span>
-                  <strong>{row.value}</strong>
-                </li>
-              ))}
-            </ul>
-            <h3 className="chart-title">{t("chartTitle")}</h3>
-            <MotorSpeedChart samples={speedHistory} emptyLabel={t("collectSamples")} />
-          </>
-        ) : (
-          <p className="caption">{t("collectSamples")}</p>
-        )}
-      </article>
+      <div className="grid min-h-0 grid-cols-2 gap-4 xl:grid-cols-[minmax(320px,460px),1fr]">
+        <div className="max-h-[calc(100vh-240px)] space-y-4 overflow-y-auto pr-1">
+          <DriveInputControls
+            title={t("inputControls")}
+            operationModeLabel={t("operationMode")}
+            localLabel={t("localMode")}
+            remoteLabel={t("remoteMode")}
+            speedReferenceLabel={t("speedReference")}
+            runLabel={t("run")}
+            stopLabel={t("stop")}
+            resetFaultLabel={t("resetFault")}
+            opcuaMappingDisabledLabel={t("opcuaMappingDisabled")}
+            draft={draft}
+            isRemote={isRemote}
+            isOpcUaConfigured={isOpcUaConfigured}
+            remoteInfoRows={remoteInfoRows}
+            onDraftChange={setDraft}
+            onOperationModeChange={(mode) => void changeOperationMode(mode)}
+            onLocalSpeedCommit={(speed) => void sendLocalSpeed(speed)}
+            onLocalStatusChange={(status) => void sendLocalStatus(status)}
+            onResetFault={() => {
+              if (draft.id) {
+                void updateRuntime(draft.id, { fault_reset: true });
+              }
+            }}
+            selectedDevice={selectedDevice}
+          />
+
+          <DriveAdvancedSettings
+            draft={draft}
+            onDraftChange={setDraft}
+            onSubmit={saveDeviceDraft}
+            title={t("advancedParameters")}
+            nameLabel={t("name")}
+            accelerationLabel={t("acceleration")}
+            decelerationLabel={t("deceleration")}
+            loadTypeLabel={t("loadType")}
+            constantTorqueLabel={t("constantTorque")}
+            fanLabel={t("fan")}
+            nominalLoadTorqueLabel={t("nominalLoadTorque")}
+            loadInertiaLabel={t("loadInertia")}
+            opcuaSpeedReferenceNodeLabel={t("opcuaSpeedReferenceNode")}
+            opcuaRunStopNodeLabel={t("opcuaRunStopNode")}
+          />
+        </div>
+
+        <div className="space-y-4">
+          <DriveTrendChart
+            selectedDevice={selectedDevice}
+            samples={trendSamples}
+            telemetryTitle={t("telemetryTitle")}
+            emptyLabel={t("collectSamples")}
+            pauseLabel={t("pauseChart")}
+            resumeLabel={t("resumeChart")}
+            paused={isChartPaused}
+            onTogglePause={() => setIsChartPaused((current) => !current)}
+          />
+          <DriveMetricsPanel
+            selectedDevice={selectedDevice}
+            voltageLabel={t("telemetryOutVoltage")}
+            temperatureLabel={t("temperature")}
+          />
+          <DriveEventLog title={t("eventLog")} emptyLabel={t("noLogYet")} entries={logEntries} />
+        </div>
+      </div>
     </section>
   );
 }

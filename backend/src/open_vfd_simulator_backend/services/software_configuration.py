@@ -28,7 +28,8 @@ class SoftwareConfigurationStore:
                         payload.simulation_step_ms
                         if payload.simulation_step_ms is not None
                         else self._configuration.simulation_step_ms
-                    )
+                    ),
+                    "opcua": payload.opcua if payload.opcua is not None else self._configuration.opcua,
                 }
             )
             return self._configuration.model_copy(deep=True)

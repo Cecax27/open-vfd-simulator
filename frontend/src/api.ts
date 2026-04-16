@@ -1,4 +1,5 @@
 export type DeviceStatus = "stopped" | "running" | "fault";
+export type OperationMode = "local" | "remote";
 
 export type LoadType = "constant_torque" | "fan";
 
@@ -29,6 +30,12 @@ export interface RuntimeCommand {
   acceleration_time_s: number;
   deceleration_time_s: number;
   status: DeviceStatus;
+  operation_mode: OperationMode;
+}
+
+export interface DeviceOpcUaMapping {
+  speed_reference_node_id: string | null;
+  run_stop_node_id: string | null;
 }
 
 export interface TelemetrySnapshot {
@@ -51,11 +58,51 @@ export interface DeviceRecord {
   motor: MotorParameters;
   load: LoadParameters;
   runtime: RuntimeCommand;
+  opcua_mapping: DeviceOpcUaMapping;
   telemetry: TelemetrySnapshot;
+}
+
+export interface OpcUaClientConfiguration {
+  enabled: boolean;
+  endpoint_url: string | null;
+  request_timeout_s: number;
+}
+
+export interface OpcUaConnectionStatus {
+  state: "disconnected" | "connecting" | "connected" | "error";
+  is_configured: boolean;
+  endpoint_url: string | null;
+  last_error: string | null;
+}
+
+export interface OpcUaBrowseItem {
+  node_id: string;
+  display_name: string;
+  node_class: string;
+}
+
+export interface OpcUaBrowseResponse {
+  parent_node_id: string;
+  items: OpcUaBrowseItem[];
+}
+
+export interface OpcUaReadValue {
+  node_id: string;
+  value: string;
+}
+
+export interface OpcUaReadResponse {
+  values: OpcUaReadValue[];
+}
+
+export interface OpcUaWriteItem {
+  node_id: string;
+  value: boolean | number | string;
 }
 
 export interface SoftwareConfiguration {
   simulation_step_ms: number;
+  opcua: OpcUaClientConfiguration;
 }
 
 const API_BASE_URL = "http://127.0.0.1:8000";
@@ -105,6 +152,7 @@ export function createDeviceWithConfiguration(payload: {
   template_key?: string;
   motor?: MotorParameters;
   load?: LoadParameters;
+  opcua_mapping?: DeviceOpcUaMapping;
 }): Promise<DeviceRecord> {
   return apiRequest<DeviceRecord>("/api/devices", {
     method: "POST",
@@ -118,6 +166,7 @@ export function updateDeviceConfiguration(
     name?: string;
     motor?: MotorParameters;
     load?: LoadParameters;
+    opcua_mapping?: DeviceOpcUaMapping;
   },
 ): Promise<DeviceRecord> {
   return apiRequest<DeviceRecord>(`/api/devices/${deviceId}`, {
@@ -146,6 +195,47 @@ export function updateSoftwareConfiguration(
   return apiRequest<SoftwareConfiguration>("/api/configuration", {
     method: "PATCH",
     body: JSON.stringify(payload),
+  });
+}
+
+export function getOpcUaConfiguration(): Promise<OpcUaClientConfiguration> {
+  return apiRequest<OpcUaClientConfiguration>("/api/opcua/configuration");
+}
+
+export function updateOpcUaConfiguration(
+  payload: OpcUaClientConfiguration,
+): Promise<OpcUaClientConfiguration> {
+  return apiRequest<OpcUaClientConfiguration>("/api/opcua/configuration", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getOpcUaStatus(): Promise<OpcUaConnectionStatus> {
+  return apiRequest<OpcUaConnectionStatus>("/api/opcua/status");
+}
+
+export function testOpcUaConnection(): Promise<OpcUaConnectionStatus> {
+  return apiRequest<OpcUaConnectionStatus>("/api/opcua/test-connection", {
+    method: "POST",
+  });
+}
+
+export function browseOpcUa(nodeId = "i=84"): Promise<OpcUaBrowseResponse> {
+  return apiRequest<OpcUaBrowseResponse>(`/api/opcua/browse?node_id=${encodeURIComponent(nodeId)}`);
+}
+
+export function readOpcUa(nodeIds: string[]): Promise<OpcUaReadResponse> {
+  return apiRequest<OpcUaReadResponse>("/api/opcua/read", {
+    method: "POST",
+    body: JSON.stringify({ node_ids: nodeIds }),
+  });
+}
+
+export function writeOpcUa(writes: OpcUaWriteItem[]): Promise<{ written: number }> {
+  return apiRequest<{ written: number }>("/api/opcua/write", {
+    method: "POST",
+    body: JSON.stringify({ writes }),
   });
 }
 

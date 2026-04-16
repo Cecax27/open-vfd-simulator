@@ -12,9 +12,26 @@ class DeviceStatus(str, Enum):
     FAULT = "fault"
 
 
+class OperationMode(str, Enum):
+    LOCAL = "local"
+    REMOTE = "remote"
+
+
+# Fault code raised when a device is in REMOTE mode but OPC UA is not ready
+# (disabled, no endpoint, or no nodes mapped on the device).
+FAULT_REMOTE_UNCONFIGURED = 2001
+
+
 class LoadType(str, Enum):
     CONSTANT_TORQUE = "constant_torque"
     FAN = "fan"
+
+
+class OPCUAConnectionState(str, Enum):
+    DISCONNECTED = "disconnected"
+    CONNECTING = "connecting"
+    CONNECTED = "connected"
+    ERROR = "error"
 
 
 class MotorParameters(BaseModel):
@@ -44,6 +61,62 @@ class RuntimeCommand(BaseModel):
     acceleration_time_s: float = Field(default=5.0, gt=0)
     deceleration_time_s: float = Field(default=5.0, gt=0)
     status: DeviceStatus = DeviceStatus.STOPPED
+    operation_mode: OperationMode = OperationMode.LOCAL
+
+
+class DeviceOpcUaMapping(BaseModel):
+    speed_reference_node_id: str | None = Field(default=None, min_length=1)
+    run_stop_node_id: str | None = Field(default=None, min_length=1)
+
+
+class OPCUAClientConfiguration(BaseModel):
+    enabled: bool = False
+    endpoint_url: str | None = Field(default=None, min_length=1)
+    request_timeout_s: float = Field(default=2.0, ge=0.1, le=30.0)
+
+
+class OPCUAConnectionStatus(BaseModel):
+    state: OPCUAConnectionState = OPCUAConnectionState.DISCONNECTED
+    is_configured: bool = False
+    endpoint_url: str | None = None
+    last_error: str | None = None
+
+
+class OPCUABrowseItem(BaseModel):
+    node_id: str
+    display_name: str
+    node_class: str
+
+
+class OPCUABrowseResponse(BaseModel):
+    parent_node_id: str
+    items: list[OPCUABrowseItem] = Field(default_factory=list)
+
+
+class OPCUAReadValue(BaseModel):
+    node_id: str
+    value: str
+
+
+class OPCUAReadRequest(BaseModel):
+    node_ids: list[str] = Field(min_length=1)
+
+
+class OPCUAReadResponse(BaseModel):
+    values: list[OPCUAReadValue] = Field(default_factory=list)
+
+
+class OPCUAWriteItem(BaseModel):
+    node_id: str
+    value: bool | int | float | str
+
+
+class OPCUAWriteRequest(BaseModel):
+    writes: list[OPCUAWriteItem] = Field(min_length=1)
+
+
+class OPCUAWriteResponse(BaseModel):
+    written: int
 
 
 class TelemetrySnapshot(BaseModel):
@@ -66,6 +139,7 @@ class DeviceRecord(BaseModel):
     motor: MotorParameters = Field(default_factory=MotorParameters)
     load: LoadParameters = Field(default_factory=LoadParameters)
     runtime: RuntimeCommand = Field(default_factory=RuntimeCommand)
+    opcua_mapping: DeviceOpcUaMapping = Field(default_factory=DeviceOpcUaMapping)
     telemetry: TelemetrySnapshot = Field(default_factory=TelemetrySnapshot)
 
 
@@ -74,6 +148,7 @@ class DeviceCreateRequest(BaseModel):
     template_key: str = Field(default="im_3ph_basic")
     motor: MotorParameters = Field(default_factory=MotorParameters)
     load: LoadParameters = Field(default_factory=LoadParameters)
+    opcua_mapping: DeviceOpcUaMapping = Field(default_factory=DeviceOpcUaMapping)
 
 
 class RuntimeCommandUpdateRequest(BaseModel):
@@ -81,6 +156,7 @@ class RuntimeCommandUpdateRequest(BaseModel):
     acceleration_time_s: float | None = Field(default=None, gt=0)
     deceleration_time_s: float | None = Field(default=None, gt=0)
     status: DeviceStatus | None = None
+    operation_mode: OperationMode | None = None
     fault_reset: bool = False
 
 
@@ -88,6 +164,7 @@ class DeviceConfigurationUpdateRequest(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     motor: MotorParameters | None = None
     load: LoadParameters | None = None
+    opcua_mapping: DeviceOpcUaMapping | None = None
 
 
 class SimulationStepRequest(BaseModel):
@@ -96,7 +173,9 @@ class SimulationStepRequest(BaseModel):
 
 class SoftwareConfiguration(BaseModel):
     simulation_step_ms: int = Field(default=100, ge=10, le=2000)
+    opcua: OPCUAClientConfiguration = Field(default_factory=OPCUAClientConfiguration)
 
 
 class SoftwareConfigurationUpdateRequest(BaseModel):
     simulation_step_ms: int | None = Field(default=None, ge=10, le=2000)
+    opcua: OPCUAClientConfiguration | None = None

@@ -7,6 +7,8 @@ from open_vfd_simulator_backend.domain.models import (
     DeviceCreateRequest,
     DeviceRecord,
     DeviceStatus,
+    FAULT_REMOTE_UNCONFIGURED,
+    OperationMode,
     RuntimeCommandUpdateRequest,
 )
 from open_vfd_simulator_backend.simulation.basic_vfd import simulator
@@ -27,6 +29,7 @@ class DeviceRegistry:
             template_key=payload.template_key,
             motor=payload.motor,
             load=payload.load,
+            opcua_mapping=payload.opcua_mapping,
         )
         with self._lock:
             self._devices[device.id] = device
@@ -51,6 +54,11 @@ class DeviceRegistry:
                     "name": payload.name if payload.name is not None else device.name,
                     "motor": payload.motor if payload.motor is not None else device.motor,
                     "load": payload.load if payload.load is not None else device.load,
+                    "opcua_mapping": (
+                        payload.opcua_mapping
+                        if payload.opcua_mapping is not None
+                        else device.opcua_mapping
+                    ),
                 }
             )
             self._devices[device_id] = updated_device
@@ -68,7 +76,22 @@ class DeviceRegistry:
 
             next_status = payload.status if payload.status is not None else device.runtime.status
             next_telemetry = device.telemetry
+            next_operation_mode = (
+                payload.operation_mode
+                if payload.operation_mode is not None
+                else device.runtime.operation_mode
+            )
+
             if payload.fault_reset and device.runtime.status == DeviceStatus.FAULT:
+                next_status = DeviceStatus.STOPPED
+                next_telemetry = device.telemetry.model_copy(update={"fault_code": 0})
+
+            # Switching to LOCAL automatically clears fault 2001 (remote unconfigured)
+            if (
+                next_operation_mode == OperationMode.LOCAL
+                and device.runtime.operation_mode == OperationMode.REMOTE
+                and device.telemetry.fault_code == FAULT_REMOTE_UNCONFIGURED
+            ):
                 next_status = DeviceStatus.STOPPED
                 next_telemetry = device.telemetry.model_copy(update={"fault_code": 0})
 
@@ -90,6 +113,7 @@ class DeviceRegistry:
                         else device.runtime.deceleration_time_s
                     ),
                     "status": next_status,
+                    "operation_mode": next_operation_mode,
                 }
             )
             updated_device = device.model_copy(
@@ -112,6 +136,21 @@ class DeviceRegistry:
         with self._lock:
             for device_id, device in list(self._devices.items()):
                 self._devices[device_id] = simulator.step(device, delta_time_s)
+
+    def set_device_fault(self, device_id: str, fault_code: int) -> DeviceRecord | None:
+        with self._lock:
+            device = self._devices.get(device_id)
+            if device is None:
+                return None
+
+            updated_device = device.model_copy(
+                update={
+                    "runtime": device.runtime.model_copy(update={"status": DeviceStatus.FAULT}),
+                    "telemetry": device.telemetry.model_copy(update={"fault_code": fault_code}),
+                }
+            )
+            self._devices[device_id] = updated_device
+            return updated_device
 
     def delete_device(self, device_id: str) -> bool:
         with self._lock:

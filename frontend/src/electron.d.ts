@@ -6,6 +6,7 @@ type MenuAction =
   | "project:save"
   | "project:save-as"
   | "view:devices"
+  | "view:communications"
   | "view:settings";
 
 type MenuActionHandler = (action: MenuAction) => void;

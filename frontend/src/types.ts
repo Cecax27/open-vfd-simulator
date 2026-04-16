@@ -1,7 +1,14 @@
-import { LoadType, MotorParameters, SoftwareConfiguration } from "./api";
+import {
+  DeviceOpcUaMapping,
+  LoadType,
+  MotorParameters,
+  OpcUaClientConfiguration,
+  OperationMode,
+  SoftwareConfiguration,
+} from "./api";
 
 export type Language = "en" | "es";
-export type Page = "home" | "devices" | "device-config" | "settings";
+export type Page = "home" | "devices" | "device-config" | "communications" | "settings";
 export type EditMode = "create" | "edit";
 export type MenuAction =
   | "project:new"
@@ -9,6 +16,7 @@ export type MenuAction =
   | "project:save"
   | "project:save-as"
   | "view:devices"
+  | "view:communications"
   | "view:settings";
 
 export type DeviceDraft = {
@@ -19,6 +27,7 @@ export type DeviceDraft = {
     acceleration_time_s: number;
     deceleration_time_s: number;
     status: "stopped" | "running" | "fault";
+    operation_mode: OperationMode;
   };
   motor: MotorParameters;
   load: {
@@ -26,6 +35,7 @@ export type DeviceDraft = {
     nominal_load_torque_nm: number;
     load_inertia_kgm2: number;
   };
+  opcua_mapping: DeviceOpcUaMapping;
 };
 
 export type SavedProjectDevice = {
@@ -42,7 +52,9 @@ export type SavedProjectDevice = {
     acceleration_time_s: number;
     deceleration_time_s: number;
     status: "stopped" | "running" | "fault";
+    operation_mode: OperationMode;
   };
+  opcua_mapping: DeviceOpcUaMapping;
 };
 
 export type SavedProject = {
@@ -75,6 +87,7 @@ export function defaultDraft(name = "Drive 1"): DeviceDraft {
       acceleration_time_s: 5,
       deceleration_time_s: 5,
       status: "stopped",
+      operation_mode: "local",
     },
     motor: {
       rated_power_w: 500,
@@ -96,6 +109,30 @@ export function defaultDraft(name = "Drive 1"): DeviceDraft {
       nominal_load_torque_nm: 2,
       load_inertia_kgm2: 0.005,
     },
+    opcua_mapping: {
+      speed_reference_node_id: null,
+      run_stop_node_id: null,
+    },
+  };
+}
+
+function parseOpcUaConfiguration(raw: unknown): OpcUaClientConfiguration {
+  if (!raw || typeof raw !== "object") {
+    return {
+      enabled: false,
+      endpoint_url: null,
+      request_timeout_s: 2,
+    };
+  }
+
+  const input = raw as Partial<OpcUaClientConfiguration>;
+  return {
+    enabled: Boolean(input.enabled),
+    endpoint_url: typeof input.endpoint_url === "string" && input.endpoint_url.trim() ? input.endpoint_url : null,
+    request_timeout_s:
+      typeof input.request_timeout_s === "number" && Number.isFinite(input.request_timeout_s)
+        ? input.request_timeout_s
+        : 2,
   };
 }
 
@@ -135,8 +172,30 @@ export function parseSavedProject(content: string): SavedProject {
     formatVersion: 1,
     projectName: typeof project.projectName === "string" ? project.projectName : "Untitled Project",
     language: project.language === "es" ? "es" : "en",
-    softwareConfiguration: { simulation_step_ms: simulationStepMs },
-    devices: project.devices as SavedProjectDevice[],
+    softwareConfiguration: {
+      simulation_step_ms: simulationStepMs,
+      opcua: parseOpcUaConfiguration((project.softwareConfiguration as { opcua?: unknown }).opcua),
+    } as SoftwareConfiguration,
+    devices: (project.devices as SavedProjectDevice[]).map((device) => ({
+      ...device,
+      runtime: {
+        speed_reference_pct: device.runtime?.speed_reference_pct ?? 0,
+        acceleration_time_s: device.runtime?.acceleration_time_s ?? 5,
+        deceleration_time_s: device.runtime?.deceleration_time_s ?? 5,
+        status: device.runtime?.status ?? "stopped",
+        operation_mode: device.runtime?.operation_mode ?? "local",
+      },
+      opcua_mapping: {
+        speed_reference_node_id:
+          typeof device.opcua_mapping?.speed_reference_node_id === "string"
+            ? device.opcua_mapping.speed_reference_node_id
+            : null,
+        run_stop_node_id:
+          typeof device.opcua_mapping?.run_stop_node_id === "string"
+            ? device.opcua_mapping.run_stop_node_id
+            : null,
+      },
+    })),
   };
 }
 

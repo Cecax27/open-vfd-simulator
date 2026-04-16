@@ -8,11 +8,8 @@
 
 :root {
   color-scheme: light;
-  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-  background:
-    radial-gradient(circle at top left, rgba(13, 84, 106, 0.2), transparent 30%),
-    linear-gradient(180deg, #f4efe3 0%, #ece3cf 100%);
-  color: #102a43;
+  font-family: "Inter", "Segoe UI", sans-serif;
+  background: rgba(248, 249, 250, 1);
 }
 
 * {
@@ -36,11 +33,6 @@ select {
 
 button {
   cursor: pointer;
-  border: 1px solid rgba(13, 84, 106, 0.2);
-  background: #fffdf7;
-  color: #102a43;
-  border-radius: 12px;
-  padding: 9px 13px;
 }
 
 button.active {
@@ -63,8 +55,8 @@ select {
 }
 
 .desktop-shell {
-  margin: 0 auto;
-  min-height: 100vh;
+  margin: 0;
+  height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr auto;
 }
@@ -106,16 +98,12 @@ select {
 .workspace-layout {
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr);
-  gap: 12px;
   min-height: 0;
 }
 
 .panel {
   padding: 20px;
-  border: 1px solid rgba(16, 42, 67, 0.1);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.76);
-  box-shadow: 0 18px 46px rgba(38, 50, 56, 0.08);
+  flex: 1;
 }
 
 .workspace-nav {
@@ -125,28 +113,18 @@ select {
   gap: 12px;
 }
 
-.workspace-nav-buttons {
-  display: grid;
-  gap: 8px;
-}
-
-.workspace-nav-buttons button {
-  text-align: left;
-}
-
 .nav-hint {
   margin-top: 4px;
 }
 
 .workspace-content {
   min-width: 0;
-  display: grid;
+  display: flex;
   align-content: start;
   gap: 12px;
-}
+  overflow: scroll;
+  padding: 20px;
 
-.view-page {
-  margin: 0;
 }
 
 .home-panel {
@@ -186,8 +164,9 @@ select {
 }
 
 .panel h2 {
-  margin: 0 0 16px;
   font-size: 1.25rem;
+  font-weight: bold;
+  color: black;
 }
 
 .caption {
@@ -237,6 +216,63 @@ select {
   font-size: 0.93rem;
 }
 
+.toggle-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+}
+
+.toggle-input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 40px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(82, 96, 109, 0.28);
+  border: 1px solid rgba(16, 42, 67, 0.18);
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.toggle-switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fffdf7;
+  box-shadow: 0 2px 8px rgba(16, 42, 67, 0.18);
+  transition: transform 160ms ease;
+}
+
+.toggle-input:checked + .toggle-switch {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.toggle-input:checked + .toggle-switch::after {
+  transform: translateX(18px);
+}
+
+.toggle-input:focus-visible + .toggle-switch {
+  outline: 2px solid #3e9da8;
+  outline-offset: 2px;
+}
+
+.toggle-label {
+  color: #334e68;
+  font-size: 0.93rem;
+}
+
 .row-actions {
   display: flex;
   gap: 10px;
@@ -258,37 +294,6 @@ select {
   gap: 10px;
   border-bottom: 1px solid rgba(16, 42, 67, 0.08);
   padding-bottom: 8px;
-}
-
-.chart-title {
-  margin: 16px 0 10px;
-  font-size: 1rem;
-}
-
-.speed-chart {
-  width: 100%;
-}
-
-.speed-chart-bg {
-  fill: #f4f8f9;
-  stroke: rgba(16, 42, 67, 0.15);
-}
-
-.speed-chart-axis {
-  stroke: rgba(16, 42, 67, 0.4);
-  stroke-width: 1;
-}
-
-.speed-chart-line {
-  stroke: #0d546a;
-  stroke-width: 2.5;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
-
-.speed-chart-label {
-  fill: #486581;
-  font-size: 12px;
 }
 
 .notice,
@@ -325,4 +330,10 @@ select {
   .window-project-meta {
     text-align: left;
   }
+}
+
+hr {
+  border: none;
+  border-top: 1px solid rgba(16, 42, 67, 0.12);
+  margin: 20px 0;
 }

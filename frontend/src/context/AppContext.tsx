@@ -4,13 +4,20 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import {
   DeviceRecord,
+  OpcUaBrowseResponse,
+  OpcUaClientConfiguration,
+  OpcUaConnectionStatus,
+  browseOpcUa,
   SoftwareConfiguration,
   createDeviceWithConfiguration,
   getDevice,
+  getOpcUaStatus,
   getSoftwareConfiguration,
   listDevices,
   resetDevices,
+  testOpcUaConnection,
   updateDeviceConfiguration,
+  updateOpcUaConfiguration,
   updateRuntime,
   updateSoftwareConfiguration,
 } from "../api";
@@ -44,6 +51,8 @@ type AppContextValue = {
   recentProjects: RecentProject[];
   language: Language;
   configuration: SoftwareConfiguration;
+  opcUaStatus: OpcUaConnectionStatus;
+  opcUaBrowse: OpcUaBrowseResponse | null;
   simulationStepInput: number;
   setSimulationStepInput: (value: number) => void;
   isLoading: boolean;
@@ -61,6 +70,9 @@ type AppContextValue = {
   applySettings: (event: FormEvent<HTMLFormElement>) => Promise<void>;
   changeLanguage: (lang: Language) => void;
   refreshDevices: () => Promise<void>;
+  setOpcUaConfiguration: (config: OpcUaClientConfiguration) => Promise<void>;
+  testOpcUaServer: () => Promise<void>;
+  browseOpcUaNode: (nodeId?: string) => Promise<void>;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -89,7 +101,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
   const [language, setLanguage] = useState<Language>("en");
 
-  const [configuration, setConfiguration] = useState<SoftwareConfiguration>({ simulation_step_ms: 100 });
+  const [configuration, setConfiguration] = useState<SoftwareConfiguration>({
+    simulation_step_ms: 100,
+    opcua: {
+      enabled: false,
+      endpoint_url: null,
+      request_timeout_s: 2,
+    },
+  });
+  const [opcUaStatus, setOpcUaStatus] = useState<OpcUaConnectionStatus>({
+    state: "disconnected",
+    is_configured: false,
+    endpoint_url: null,
+    last_error: null,
+  });
+  const [opcUaBrowse, setOpcUaBrowse] = useState<OpcUaBrowseResponse | null>(null);
   const [simulationStepInput, setSimulationStepInput] = useState(100);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -115,6 +141,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     return () => window.clearInterval(timer);
   }, [selectedDeviceId, location.pathname]);
+
+  useEffect(() => {
+    if (location.pathname !== "/communications/opcua") {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      void refreshOpcUaStatus();
+    }, 2000);
+
+    void refreshOpcUaStatus();
+    return () => window.clearInterval(timer);
+  }, [location.pathname]);
 
   // Append speed samples when telemetry updates.
   useEffect(() => {
@@ -226,17 +265,75 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       return;
     }
+    if (action === "view:communications") {
+      if (projectOpen) {
+        navigate("/communications/opcua");
+      }
+      return;
+    }
     if (action === "view:settings") {
       navigate("/settings");
     }
   }
 
+  async function refreshOpcUaStatus() {
+    try {
+      const status = await getOpcUaStatus();
+      setOpcUaStatus(status);
+    } catch {
+      // Keep existing status if backend call fails.
+    }
+  }
+
+  async function setOpcUaConfiguration(config: OpcUaClientConfiguration) {
+    setIsMutating(true);
+    setErrorMessage(null);
+    try {
+      const opcua = await updateOpcUaConfiguration(config);
+      setConfiguration((current) => ({ ...current, opcua }));
+      setProjectDirty(true);
+      setNotice(t("saved"));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to save OPC UA config");
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function testOpcUaServer() {
+    setIsMutating(true);
+    setErrorMessage(null);
+    try {
+      const status = await testOpcUaConnection();
+      setOpcUaStatus(status);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to test OPC UA connection");
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function browseOpcUaNode(nodeId = "i=84") {
+    setIsMutating(true);
+    setErrorMessage(null);
+    try {
+      const result = await browseOpcUa(nodeId);
+      setOpcUaBrowse(result);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to browse OPC UA nodes");
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
   async function applyProjectData(project: SavedProject, filePath: string | null) {
-      
+
     await resetDevices();
     await updateSoftwareConfiguration({
       simulation_step_ms: project.softwareConfiguration.simulation_step_ms,
+      opcua: project.softwareConfiguration.opcua,
     });
+    setConfiguration(project.softwareConfiguration);
 
     for (const device of project.devices) {
       const created = await createDeviceWithConfiguration({
@@ -244,8 +341,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         template_key: device.template_key,
         motor: device.motor,
         load: device.load,
+        opcua_mapping: device.opcua_mapping,
       });
       await updateRuntime(created.id, device.runtime);
+      await updateDeviceConfiguration(created.id, { opcua_mapping: device.opcua_mapping });
     }
 
     const nextLanguage: Language = project.language === "es" ? "es" : "en";
@@ -269,7 +368,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   async function startNewProject() {
-    
+
     const proceed = await confirmBeforeDiscard();
     if (!proceed) {
       return;
@@ -282,7 +381,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         formatVersion: 1,
         projectName: "Untitled Project",
         language: "en",
-        softwareConfiguration: { simulation_step_ms: 100 },
+        softwareConfiguration: {
+          simulation_step_ms: 100,
+          opcua: {
+            enabled: false,
+            endpoint_url: null,
+            request_timeout_s: 2,
+          },
+        },
         devices: [],
       };
       await applyProjectData(freshProject, null);
@@ -385,6 +491,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           motor: device.motor,
           load: device.load,
           runtime: device.runtime,
+          opcua_mapping: device.opcua_mapping,
         })),
       };
 
@@ -419,9 +526,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         acceleration_time_s: device.runtime.acceleration_time_s,
         deceleration_time_s: device.runtime.deceleration_time_s,
         status: device.runtime.status,
+        operation_mode: device.runtime.operation_mode,
       },
       motor: device.motor,
       load: device.load,
+      opcua_mapping: device.opcua_mapping,
     });
     setSelectedDeviceId(device.id);
     navigate("/devices/config");
@@ -437,6 +546,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           name: draft.name,
           motor: draft.motor,
           load: draft.load,
+          opcua_mapping: draft.opcua_mapping,
         });
         await updateRuntime(created.id, draft.runtime);
         setSelectedDeviceId(created.id);
@@ -445,6 +555,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           name: draft.name,
           motor: draft.motor,
           load: draft.load,
+          opcua_mapping: draft.opcua_mapping,
         });
         await updateRuntime(draft.id, draft.runtime);
       }
@@ -499,6 +610,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     recentProjects,
     language,
     configuration,
+    opcUaStatus,
+    opcUaBrowse,
     simulationStepInput,
     setSimulationStepInput,
     isLoading,
@@ -516,6 +629,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     applySettings,
     changeLanguage,
     refreshDevices,
+    setOpcUaConfiguration,
+    testOpcUaServer,
+    browseOpcUaNode,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

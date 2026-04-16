@@ -42,7 +42,7 @@ def update_device_configuration(
 
 
 @router.patch("/{device_id}/runtime", response_model=DeviceRecord)
-def update_device_runtime(device_id: str, payload: RuntimeCommandUpdateRequest) -> DeviceRecord:
+async def update_device_runtime(device_id: str, payload: RuntimeCommandUpdateRequest) -> DeviceRecord:
     device = registry.update_runtime(device_id, payload)
     if device is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Device not found")

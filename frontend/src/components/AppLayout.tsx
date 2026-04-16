@@ -9,6 +9,7 @@ import { Page } from "../types";
 
 function pageFromPath(pathname: string): Page {
   if (pathname === "/settings") return "settings";
+  if (pathname.startsWith("/communications")) return "communications";
   if (pathname === "/devices/config") return "device-config";
   if (pathname === "/devices") return "devices";
   return "home";
@@ -36,6 +37,7 @@ export function AppLayout() {
     home: t("home"),
     devices: t("devices"),
     "device-config": editMode === "create" ? t("createDeviceTitle") : t("editDeviceTitle"),
+    communications: t("communications"),
     settings: t("settings"),
   };
 
@@ -54,6 +56,7 @@ export function AppLayout() {
           workspaceLabel={t("workspace")}
           homeLabel={t("home")}
           devicesLabel={t("devices")}
+          communicationsLabel={t("communications")}
           settingsLabel={t("settings")}
           menuHint={t("useMenuHint")}
           closeProjectLabel={t("closeProject")}
@@ -62,6 +65,7 @@ export function AppLayout() {
           isMutating={isMutating}
           onNavigateHome={() => navigate("/")}
           onNavigateDevices={() => navigate("/devices")}
+          onNavigateCommunications={() => navigate("/communications/opcua")}
           onNavigateSettings={() => navigate("/settings")}
           onCloseProject={() => void closeProject()}
         />
