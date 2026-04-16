@@ -75,4 +75,5 @@ Saved project data includes:
 See `docs/` for implementation details. For local startup instructions (backend + frontend + electron), use:
 
 - `docs/DEVELOPMENT.md` -> "Run Locally (Backend + Frontend)"
+- `docs/DEVELOPMENT.md` -> "Build for Ubuntu and Windows"
 - `docs/PROJECT_FORMAT.md` -> project save file structure

@@ -129,6 +129,169 @@ cd backend
 ../.venv/bin/python -m pytest -q
 ```
 
+## Build for Ubuntu and Windows
+
+The project currently builds in two parts:
+
+- Backend Python package (`sdist` + `wheel`)
+- Frontend static bundle (`frontend/dist`)
+
+The desktop app is still run by launching Electron with the local backend process. An installer pipeline (`.deb`, `.exe`, etc.) is not configured yet.
+
+### Ubuntu 22.04+ Build
+
+#### 1) System prerequisites
+
+```bash
+sudo apt update
+sudo apt install -y build-essential python3.11 python3.11-venv python3-pip
+corepack enable
+corepack prepare pnpm@latest --activate
+```
+
+#### 2) Create and prepare Python environment
+
+From repository root:
+
+```bash
+python3.11 -m venv .venv
+. .venv/bin/activate
+```
+
+#### 3) Install dependencies
+
+```bash
+# Backend
+cd backend
+../.venv/bin/python -m pip install -U pip
+../.venv/bin/python -m pip install -e .[dev]
+
+# Frontend
+cd ../frontend
+pnpm install
+```
+
+#### 4) Compile backend artifacts
+
+```bash
+cd ../backend
+../.venv/bin/python -m pip install build
+../.venv/bin/python -m build
+```
+
+Expected output:
+
+- `backend/dist/*.whl`
+- `backend/dist/*.tar.gz`
+
+#### 5) Compile frontend artifacts
+
+```bash
+cd ../frontend
+pnpm build
+```
+
+Expected output:
+
+- `frontend/dist/` (Vite production bundle)
+
+#### 6) Run using built setup
+
+Terminal 1:
+
+```bash
+cd backend
+../.venv/bin/python -m uvicorn open_vfd_simulator_backend.main:app --app-dir src --host 127.0.0.1 --port 8000
+```
+
+Terminal 2:
+
+```bash
+cd frontend
+pnpm dev:electron
+```
+
+### Windows 10/11 Build (PowerShell)
+
+#### 1) System prerequisites
+
+- Python 3.11+
+- Node.js 20+
+- pnpm (via Corepack)
+
+```powershell
+corepack enable
+corepack prepare pnpm@latest --activate
+```
+
+#### 2) Create and prepare Python environment
+
+From repository root:
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+If script execution is blocked:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```
+
+#### 3) Install dependencies
+
+```powershell
+# Backend
+cd backend
+..\.venv\Scripts\python.exe -m pip install -U pip
+..\.venv\Scripts\python.exe -m pip install -e .[dev]
+
+# Frontend
+cd ..\frontend
+pnpm install
+```
+
+#### 4) Compile backend artifacts
+
+```powershell
+cd ..\backend
+..\.venv\Scripts\python.exe -m pip install build
+..\.venv\Scripts\python.exe -m build
+```
+
+Expected output:
+
+- `backend\dist\*.whl`
+- `backend\dist\*.tar.gz`
+
+#### 5) Compile frontend artifacts
+
+```powershell
+cd ..\frontend
+pnpm build
+```
+
+Expected output:
+
+- `frontend\dist\`
+
+#### 6) Run using built setup
+
+Terminal 1:
+
+```powershell
+cd backend
+..\.venv\Scripts\python.exe -m uvicorn open_vfd_simulator_backend.main:app --app-dir src --host 127.0.0.1 --port 8000
+```
+
+Terminal 2:
+
+```powershell
+cd frontend
+pnpm dev:electron
+```
+
 ## Notes
 
 - The backend now runs simulation continuously in a background loop.
