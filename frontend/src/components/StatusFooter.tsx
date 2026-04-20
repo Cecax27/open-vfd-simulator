@@ -8,7 +8,7 @@ export function StatusFooter({}: StatusFooterProps) {
   const { t } = useTranslation();
 
   return (
-    <footer className="bg-[#191c1d] text-[#f0f8f7] p-2 flex flex-wrap gap-2 text-sm select-none">
+    <footer className="bg-bg-secondary text-text-secondary p-2 flex flex-wrap gap-2 text-xs">
       <Label>{t("backendStatus")}</Label>
       <Value>{errorMessage ? t("attention") : t("connected")}</Value>
       <Label>{t("projectName")}</Label>
@@ -33,9 +33,9 @@ export function StatusFooter({}: StatusFooterProps) {
 }
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <span className="uppercase text-primary-70">{children} :</span>;
+  return <span className=" ">{children} :</span>;
 }
 
 function Value({ children }: { children: React.ReactNode }) {
-  return <span className="uppercase mr-10">{children}</span>;
+  return <span className=" mr-5">{children}</span>;
 }

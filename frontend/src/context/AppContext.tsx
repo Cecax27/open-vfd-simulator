@@ -398,6 +398,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       };
       await applyProjectData(freshProject, null);
       setNotice(t("saved"));
+      navigate("/devices");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Failed to create project");
     } finally {

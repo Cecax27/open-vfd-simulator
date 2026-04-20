@@ -20,15 +20,9 @@ export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const {
-    projectOpen,
-    projectName,
-    projectPath,
-    projectDirty,
-    isMutating,
     notice,
     errorMessage,
     editMode,
-    closeProject,
   } = useAppContext();
 
   const page = pageFromPath(location.pathname);
@@ -42,34 +36,21 @@ export function AppLayout() {
   };
 
   return (
-    <main className="desktop-shell">
-      <WindowHeader
-        subtitle={t("subtitle")}
-        appTitle={t("appTitle")}
-        projectLabel={t("projectName")}
-        projectName={projectName}
-        projectPathDisplay={projectPath ?? t("unsaved")}
-        projectDirty={projectDirty}
-      />
-      <div className="workspace-layout">
-        <WorkspaceNav
-          workspaceLabel={t("workspace")}
-          homeLabel={t("home")}
-          devicesLabel={t("devices")}
-          communicationsLabel={t("communications")}
-          settingsLabel={t("settings")}
-          menuHint={t("useMenuHint")}
-          closeProjectLabel={t("closeProject")}
-          page={page}
-          projectOpen={projectOpen}
-          isMutating={isMutating}
-          onNavigateHome={() => navigate("/")}
-          onNavigateDevices={() => navigate("/devices")}
-          onNavigateCommunications={() => navigate("/communications/opcua")}
-          onNavigateSettings={() => navigate("/settings")}
-          onCloseProject={() => void closeProject()}
-        />
-        <section className="workspace-content">
+    <main className="desktop-shell select-none">
+      <WindowHeader />
+      <div className={page === "home" ? "workspace-layout workspace-layout--no-nav" : "workspace-layout"}>
+        {page !== "home" ? (
+          <WorkspaceNav
+            page={page}
+            onNavigate={(target) => {
+              if (target === "home") navigate("/");
+              if (target === "devices") navigate("/devices");
+              if (target === "communications") navigate("/communications/opcua");
+              if (target === "settings") navigate("/settings");
+            }}
+          />
+        ) : null}
+        <section className={page === "home" ? "workspace-content workspace-content--home" : "workspace-content"}>
           <Outlet />
         </section>
       </div>

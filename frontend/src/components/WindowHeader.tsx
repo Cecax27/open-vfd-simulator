@@ -1,29 +1,18 @@
-type WindowHeaderProps = {
-  subtitle: string;
-  appTitle: string;
-  projectLabel: string;
-  projectName: string;
-  projectPathDisplay: string;
-  projectDirty: boolean;
-};
+import { useTranslation } from "react-i18next";
 
-export function WindowHeader({
-  subtitle,
-  appTitle,
-  projectLabel,
-  projectName,
-  projectPathDisplay,
-  projectDirty,
-}: WindowHeaderProps) {
+import { useAppContext } from "../context/AppContext";
+
+export function WindowHeader() {
+  const { t } = useTranslation();
+  const { projectName, projectPath, projectDirty } = useAppContext();
+
   return (
     <header className="window-header">
       <div>
-        <p className="eyebrow">{subtitle}</p>
-        <h1>{appTitle}</h1>
+        <h1 className="text-primary text-2xl font-extrabold font-space-grotesk">{t("appTitle")}</h1>
       </div>
       <div className="window-project-meta">
-        <strong>{projectLabel}: {projectName}</strong>
-        <span>{projectPathDisplay}{projectDirty ? " *" : ""}</span>
+        
       </div>
     </header>
   );
