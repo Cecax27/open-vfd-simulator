@@ -4,6 +4,8 @@ import { ReactNode } from "react";
 import { useAppContext } from "../context/AppContext";
 import { Page } from "../types";
 
+import { SquareArrowRightExit } from "lucide-react";
+
 type WorkspaceNavProps = {
   page: Page;
   onNavigate: (page: "home" | "devices" | "communications" | "settings") => void;
@@ -17,16 +19,6 @@ export function WorkspaceNav({
   const { projectOpen, isMutating, closeProject } = useAppContext();
 
   const navItems = [
-    {
-      key: "home",
-      label: t("home"),
-      icon: (
-        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M3 11.5 12 4l9 7.5" />
-          <path d="M5 10.5V20h14v-9.5" />
-        </svg>
-      ),
-    },
     {
       key: "devices",
       label: t("devices"),
@@ -68,7 +60,9 @@ export function WorkspaceNav({
         ))}
       </div>
       {projectOpen ? (
-        <button onClick={() => void closeProject()} disabled={isMutating}>{t("closeProject")}</button>
+        <button onClick={() => void closeProject()} disabled={isMutating}>
+          <SquareArrowRightExit className="inline-block h-4 w-4 mr-2" /> {t("closeProject")}
+        </button>
       ) : null}
     </aside>
   );

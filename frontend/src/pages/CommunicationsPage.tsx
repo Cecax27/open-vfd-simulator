@@ -6,7 +6,7 @@ export function CommunicationsPage() {
   const navigate = useNavigate();
 
   return (
-    <section className="panel view-page">
+    <section className="panel">
       <div className="panel-head">
         <h2>{t("communicationsTitle")}</h2>
       </div>

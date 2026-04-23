@@ -57,11 +57,6 @@ button:disabled {
   opacity: 0.6;
 }
 
-input,
-select {
-  width: 100%;
-}
-
 .desktop-shell {
   margin: 0;
   height: 100vh;
@@ -102,9 +97,9 @@ select {
 }
 
 .workspace-nav {
-  align-self: stretch;
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   gap: 12px;
   background: var(--color-bg-tertiary);
   padding: 10px;
@@ -228,21 +223,6 @@ select {
   display: grid;
   grid-template-columns: 1.1fr 1fr;
   gap: 14px;
-}
-
-.form-grid {
-  display: grid;
-  gap: 12px;
-}
-
-.form-grid label {
-  display: grid;
-  gap: 6px;
-}
-
-.form-grid label span {
-  color: #334e68;
-  font-size: 0.93rem;
 }
 
 .toggle-field {
