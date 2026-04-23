@@ -153,14 +153,14 @@ select {
   gap: 12px;
   overflow: scroll;
   padding: 20px;
-
-}
-
-.workspace-content--home {
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-color: #4a5568 #151a22;
   scrollbar-width: thin;
+}
+
+.workspace-content--home {
+  
 }
 
 .workspace-content--home::-webkit-scrollbar {
@@ -219,12 +219,14 @@ select {
 }
 
 .device-tile {
-  padding: 14px;
-  border: 1px solid rgba(13, 84, 106, 0.18);
+  padding: 20px;
   border-radius: 14px;
-  background: #fffdf8;
-  display: grid;
+  background: var(--color-bg-secondary);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   gap: 8px;
+  height: 150px;
 }
 
 .device-tile h3,
