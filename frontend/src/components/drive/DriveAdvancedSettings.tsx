@@ -81,7 +81,7 @@ export function DriveAdvancedSettings({
                 <input
                   value={draft.name}
                   onChange={(event) => onDraftChange({ ...draft, name: event.target.value })}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2"
+                  className="w-full text-accent-primary rounded-md px-3 py-2 text-sm font-jetbrains-mono"
                 />
               </label>
 
@@ -99,7 +99,7 @@ export function DriveAdvancedSettings({
                         runtime: { ...draft.runtime, acceleration_time_s: Number(event.target.value) },
                       })
                     }
-                    className="w-full rounded-md border border-slate-300 px-3 py-2"
+                    className="w-full text-accent-primary rounded-md px-3 py-2 text-sm font-jetbrains-mono"
                   />
                 </label>
 
@@ -116,7 +116,7 @@ export function DriveAdvancedSettings({
                         runtime: { ...draft.runtime, deceleration_time_s: Number(event.target.value) },
                       })
                     }
-                    className="w-full rounded-md border border-slate-300 px-3 py-2"
+                    className="w-full text-accent-primary rounded-md px-3 py-2 text-sm font-jetbrains-mono"
                   />
                 </label>
               </div>
@@ -131,7 +131,7 @@ export function DriveAdvancedSettings({
                       load: { ...draft.load, load_type: event.target.value as LoadType },
                     })
                   }
-                  className="w-full rounded-md border border-slate-300 px-3 py-2"
+                  className="w-full text-accent-primary rounded-md px-3 py-2 text-sm font-jetbrains-mono"
                 >
                   <option value="constant_torque">{constantTorqueLabel}</option>
                   <option value="fan">{fanLabel}</option>
@@ -152,7 +152,7 @@ export function DriveAdvancedSettings({
                         load: { ...draft.load, nominal_load_torque_nm: Number(event.target.value) },
                       })
                     }
-                    className="w-full rounded-md border border-slate-300 px-3 py-2"
+                    className="w-full text-accent-primary rounded-md px-3 py-2 text-sm font-jetbrains-mono"
                   />
                 </label>
 
@@ -169,7 +169,7 @@ export function DriveAdvancedSettings({
                         load: { ...draft.load, load_inertia_kgm2: Number(event.target.value) },
                       })
                     }
-                    className="w-full rounded-md border border-slate-300 px-3 py-2"
+                    className="w-full text-accent-primary rounded-md px-3 py-2 text-sm font-jetbrains-mono"
                   />
                 </label>
               </div>
@@ -197,7 +197,7 @@ export function DriveAdvancedSettings({
                         },
                       })
                     }
-                    className="w-full rounded-md border border-slate-300 px-3 py-2"
+                    className="w-full text-accent-primary rounded-md px-3 py-2 text-sm font-jetbrains-mono"
                   />
                 </label>
 
@@ -216,15 +216,15 @@ export function DriveAdvancedSettings({
                         },
                       })
                     }
-                    className="w-full rounded-md border border-slate-300 px-3 py-2"
+                    className="w-full text-accent-primary rounded-md px-3 py-2 text-sm font-jetbrains-mono"
                   />
                 </label>
               </div>
 
-              <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="space-y-2 rounded-lg bg-bg-tertiary p-3">
                 <div className="flex items-center justify-between gap-3">
-                  <h4 className="text-sm font-semibold text-slate-800">{opcuaTelemetryMappingLabel}</h4>
-                  <span className="text-xs text-slate-500">{availableOpcVariablesLabel}: {opcUaVariables.length}</span>
+                  <h3 className="text-sm font-semibold font-space-grotesk text-text-secondary">{opcuaTelemetryMappingLabel}</h3>
+                  <span className="text-xs text-text-muted">{availableOpcVariablesLabel}: {opcUaVariables.length}</span>
                 </div>
                 <datalist id={telemetryNodeSuggestionsId}>
                   {opcUaVariables.map((item) => (
@@ -237,10 +237,10 @@ export function DriveAdvancedSettings({
                   {OPCUA_TELEMETRY_SPECS.map((spec) => (
                     <div
                       key={spec.key}
-                      className="grid grid-cols-1 items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-2 sm:grid-cols-[minmax(180px,1fr),130px,1fr]"
+                      className="grid grid-cols-1 items-center gap-2 bg-bg-tertiary px-2 py-2 sm:grid-cols-[minmax(180px,1fr),130px,1fr]"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-slate-700">{telemetryVariableLabel(spec.labelKey)}</span>
+                        <span className="text-sm text-text-primary">{telemetryVariableLabel(spec.labelKey)}</span>
                         <span
                           className="cursor-help rounded-full border border-slate-300 px-1.5 text-xs text-slate-600"
                           title={expectedTypeTooltip(spec.expectedType)}
@@ -272,7 +272,7 @@ export function DriveAdvancedSettings({
                             },
                           });
                         }}
-                        className="w-full rounded-md border border-slate-300 px-3 py-2"
+                        className="w-full text-accent-primary rounded-md px-3 py-2 text-sm font-jetbrains-mono"
                       />
                     </div>
                   ))}

@@ -10,6 +10,7 @@ import {
   browseOpcUa,
   SoftwareConfiguration,
   createDeviceWithConfiguration,
+  deleteDevice,
   getDevice,
   getOpcUaStatus,
   getSoftwareConfiguration,
@@ -67,6 +68,7 @@ type AppContextValue = {
   openCreateDevicePage: () => void;
   openEditDevicePage: (device: DeviceRecord) => void;
   saveDeviceDraft: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+  deleteSelectedDevice: () => Promise<void>;
   applySettings: (event: FormEvent<HTMLFormElement>) => Promise<void>;
   changeLanguage: (lang: Language) => void;
   refreshDevices: () => Promise<void>;
@@ -598,6 +600,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function deleteSelectedDevice() {
+    if (editMode !== "edit" || !draft.id) {
+      return;
+    }
+
+    setIsMutating(true);
+    setErrorMessage(null);
+    try {
+      await deleteDevice(draft.id);
+      await refreshDevices();
+      setProjectDirty(true);
+      setNotice(t("deviceDeleted"));
+      navigate("/devices");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to delete device");
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
   async function applySettings(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsMutating(true);
@@ -653,6 +675,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     openCreateDevicePage,
     openEditDevicePage,
     saveDeviceDraft,
+    deleteSelectedDevice,
     applySettings,
     changeLanguage,
     refreshDevices,

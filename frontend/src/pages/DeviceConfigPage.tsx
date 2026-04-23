@@ -10,9 +10,18 @@ import { DriveMetricsPanel } from "../components/drive/DriveMetricsPanel";
 import { DriveTrendChart } from "../components/drive/DriveTrendChart";
 import { useDriveTelemetryFeed } from "../components/drive/useDriveTelemetryFeed";
 import { Button } from "../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
 import { useAppContext } from "../context/AppContext";
-import { OPCUA_TELEMETRY_SPECS, getTelemetryValueByKey } from "../lib/opcuaTelemetry";
+import {
+  OPCUA_TELEMETRY_SPECS,
+  getTelemetryValueByKey,
+} from "../lib/opcuaTelemetry";
+import { ArrowLeft, Trash } from "lucide-react";
 
 export function DeviceConfigPage() {
   const { t } = useTranslation();
@@ -23,14 +32,20 @@ export function DeviceConfigPage() {
     setDraft,
     isMutating,
     saveDeviceDraft,
+    deleteSelectedDevice,
     selectedDevice,
     configuration,
     opcUaBrowse,
   } = useAppContext();
   const [isChartPaused, setIsChartPaused] = useState(false);
-  const { trendSamples, logEntries } = useDriveTelemetryFeed(selectedDevice, isChartPaused);
+  const { trendSamples, logEntries } = useDriveTelemetryFeed(
+    selectedDevice,
+    isChartPaused,
+  );
 
-  const isOpcUaConfigured = Boolean(configuration.opcua.enabled && configuration.opcua.endpoint_url);
+  const isOpcUaConfigured = Boolean(
+    configuration.opcua.enabled && configuration.opcua.endpoint_url,
+  );
   const isRemote = draft.runtime.operation_mode === "remote";
 
   const remoteInfoRows = useMemo(
@@ -91,16 +106,51 @@ export function DeviceConfigPage() {
     await updateRuntime(draft.id, { operation_mode: operationMode });
   }
 
+  async function handleDeleteDevice() {
+    if (editMode !== "edit" || !draft.id || isMutating) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      t("confirmDeleteDevice", { name: draft.name || t("name") }),
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    await deleteSelectedDevice();
+  }
+
   return (
-    <section className="flex min-w-full flex-col gap-4 px-2 pb-2">
-      <header className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-        <Button type="submit" form="drive-parameter-form" disabled={isMutating}>
-          {t("saveDevice")}
-        </Button>
-        <h2 className="text-lg font-semibold tracking-tight">Drive parameter set</h2>
-        <Button type="button" variant="outline" onClick={() => navigate("/devices")}>
-          {t("backToDevices")}
-        </Button>
+    <section className="flex min-w-full flex-col gap-4 px-2 pb-2 bg-bg-primary">
+      <header className="flex items-center justify-between px-4 py-3">
+        <div id="title-bar" className="flex gap-2 items-center">
+          <Button
+            onClick={() => navigate("/devices")}
+            className="px-2 py-1 bg-bg-primary text-text-primary"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h2 className="text-lg font-semibold tracking-tight text-text-primary font-space-grotesk">
+            Drive parameter set
+          </h2>
+        </div>
+        <div id="actions-bar" className="flex gap-2">
+          <Button
+            type="submit"
+            form="drive-parameter-form"
+            disabled={isMutating}
+          >
+            {t("saveDevice")}
+          </Button>
+          <Button
+            className="bg-transparent text-error hover:text-error/80 hover:bg-transparent"
+            onClick={() => void handleDeleteDevice()}
+            disabled={editMode !== "edit" || !draft.id || isMutating}
+          >
+            <Trash className="w-4 h-4" />
+          </Button>
+        </div>
       </header>
 
       <div className="grid min-h-0 grid-cols-2 gap-4 xl:grid-cols-[minmax(320px,460px),1fr]">
@@ -152,7 +202,9 @@ export function DeviceConfigPage() {
             availableOpcVariablesLabel={t("opcuaAvailableVariables")}
             telemetryNodePlaceholder={t("opcuaTelemetryNodePlaceholder")}
             telemetryVariableLabel={(labelKey) => t(labelKey)}
-            expectedTypeTooltip={(expectedType) => t("opcuaExpectedTypeTooltip", { type: expectedType })}
+            expectedTypeTooltip={(expectedType) =>
+              t("opcuaExpectedTypeTooltip", { type: expectedType })
+            }
           />
         </div>
 
@@ -172,7 +224,11 @@ export function DeviceConfigPage() {
             voltageLabel={t("telemetryOutVoltage")}
             temperatureLabel={t("temperature")}
           />
-          <DriveEventLog title={t("eventLog")} emptyLabel={t("noLogYet")} entries={logEntries} />
+          <DriveEventLog
+            title={t("eventLog")}
+            emptyLabel={t("noLogYet")}
+            entries={logEntries}
+          />
           <Card>
             <CardHeader className="pb-2">
               <CardTitle>{t("telemetryAvailableData")}</CardTitle>
@@ -181,21 +237,42 @@ export function DeviceConfigPage() {
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-left text-slate-500">
-                      <th className="px-2 py-2 font-medium">{t("telemetryVariable")}</th>
-                      <th className="px-2 py-2 font-medium">{t("telemetryValue")}</th>
-                      <th className="px-2 py-2 font-medium">{t("telemetryUnit")}</th>
-                      <th className="px-2 py-2 font-medium">{t("opcuaMappedNode")}</th>
+                    <tr className="border-b border-bg-tertiary text-left text-text-secondary">
+                      <th className="px-2 py-2 font-medium">
+                        {t("telemetryVariable")}
+                      </th>
+                      <th className="px-2 py-2 font-medium">
+                        {t("telemetryValue")}
+                      </th>
+                      <th className="px-2 py-2 font-medium">
+                        {t("telemetryUnit")}
+                      </th>
+                      <th className="px-2 py-2 font-medium">
+                        {t("opcuaMappedNode")}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {OPCUA_TELEMETRY_SPECS.map((spec) => (
-                      <tr key={spec.key} className="border-b border-slate-100 last:border-0">
-                        <td className="px-2 py-2 text-slate-700">{t(spec.labelKey)}</td>
-                        <td className="px-2 py-2 text-slate-900">{String(getTelemetryValueByKey(selectedDevice, spec.key))}</td>
-                        <td className="px-2 py-2 text-slate-600">{spec.unitKey ? t(spec.unitKey) : "-"}</td>
+                      <tr
+                        key={spec.key}
+                        className="border-b border-bg-tertiary last:border-0"
+                      >
+                        <td className="px-2 py-2 text-text-primary">
+                          {t(spec.labelKey)}
+                        </td>
+                        <td className="px-2 py-2 text-text-primary">
+                          {String(
+                            getTelemetryValueByKey(selectedDevice, spec.key),
+                          )}
+                        </td>
                         <td className="px-2 py-2 text-slate-600">
-                          {selectedDevice?.opcua_mapping.telemetry_node_ids[spec.key] ?? "-"}
+                          {spec.unitKey ? t(spec.unitKey) : "-"}
+                        </td>
+                        <td className="px-2 py-2 text-slate-600">
+                          {selectedDevice?.opcua_mapping.telemetry_node_ids[
+                            spec.key
+                          ] ?? "-"}
                         </td>
                       </tr>
                     ))}

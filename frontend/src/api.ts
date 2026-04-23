@@ -187,6 +187,12 @@ export function updateRuntime(
   });
 }
 
+export async function deleteDevice(deviceId: string): Promise<void> {
+  await apiRequest<void>(`/api/devices/${deviceId}`, {
+    method: "DELETE",
+  });
+}
+
 export function getSoftwareConfiguration(): Promise<SoftwareConfiguration> {
   return apiRequest<SoftwareConfiguration>("/api/configuration");
 }
