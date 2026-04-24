@@ -1,14 +1,59 @@
 {
-  "name": "open-vfd-simulator-frontend",
+  "name": "open-vfd",
+  "description": "A open source software to learn and simulate variable frequency drivers. Using communications protocols as OPC UA.",
   "version": "0.1.0",
+  "homepage": "https://github.com/Cecax27/open-vfd-simulator",
+  "author": {
+    "name": "Carlos Cervantes",
+    "email": "carlos27.10.98@gmail.com",
+    "url": "https://github.com/cecax27"
+  },
+  "category": "Education",
+  "keywords": ["vfd", "simulate", "industrial", "education", "automation", "engineering"],
+  "bugs": {"url": "https://github.com/Cecax27/open-vfd-simulator/issues"},
+  "license": "MIT",
   "private": true,
+  "main": "electron/main.mjs",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "dev:web": "vite --host 127.0.0.1 --port 5173",
     "dev:electron": "electron electron/main.mjs",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:backend": "cd ../backend && ../.venv/bin/python -m pip install build && ../.venv/bin/python -m build",
+    "build:pyinstaller": "cd ../backend && ../.venv/bin/pyinstaller --onefile --windowed --name vfd-backend src/open_vfd_simulator_backend/main.py",
+    "build:electron": "tsc && vite build && electron-builder"
+  },
+  "build": {
+    "appId": "com.openvfd.open-vfd",
+    "productName": "OpenVFD",
+    "files": [
+      "dist/**/*",
+      "electron/main.mjs",
+      "electron/preload.cjs",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend"
+      }
+    ],
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Education"
+    },
+    "win": {
+      "target": ["nsis"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "OpenVFD"
+    }
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
@@ -35,6 +80,7 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "electron": "^31.7.7",
+    "electron-builder": "^26.8.1",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.5.4",
     "vite": "^5.4.0"

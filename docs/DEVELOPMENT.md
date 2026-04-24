@@ -57,6 +57,22 @@ cd backend
 ../.venv/bin/python -m uvicorn open_vfd_simulator_backend.main:app --app-dir src --reload --host 127.0.0.1 --port 8000
 ```
 
+This command starts Uvicorn directly against `main:app` (best for local dev with auto-reload).
+
+Alternative (uses the backend entrypoint in `main.py`):
+
+```bash
+cd backend
+OPEN_VFD_HOST=127.0.0.1 OPEN_VFD_PORT=8000 OPEN_VFD_LOG_LEVEL=info \
+  ../.venv/bin/python -m open_vfd_simulator_backend.main
+```
+
+`open_vfd_simulator_backend.main:run()` reads:
+
+- `OPEN_VFD_HOST` (default: `127.0.0.1`)
+- `OPEN_VFD_PORT` (default: `8000`)
+- `OPEN_VFD_LOG_LEVEL` (default: `info`)
+
 Alternative from repository root:
 
 ```bash
@@ -175,41 +191,26 @@ pnpm install
 
 ```bash
 cd ../backend
-../.venv/bin/python -m pip install build
-../.venv/bin/python -m build
+pyinstaller src/open_vfd_simulator_backed/main.py --onefile
+cd ..
+cp backend/dist/main frontend/backend/main
 ```
 
 Expected output:
 
-- `backend/dist/*.whl`
-- `backend/dist/*.tar.gz`
+- `backend/dist/main`
+- `backend/dist/main.exe`
 
 #### 5) Compile frontend artifacts
 
 ```bash
 cd ../frontend
-pnpm build
+pnpm run build:electron
 ```
 
 Expected output:
 
 - `frontend/dist/` (Vite production bundle)
-
-#### 6) Run using built setup
-
-Terminal 1:
-
-```bash
-cd backend
-../.venv/bin/python -m uvicorn open_vfd_simulator_backend.main:app --app-dir src --host 127.0.0.1 --port 8000
-```
-
-Terminal 2:
-
-```bash
-cd frontend
-pnpm dev:electron
-```
 
 ### Windows 10/11 Build (PowerShell)
 
@@ -282,7 +283,10 @@ Terminal 1:
 
 ```powershell
 cd backend
-..\.venv\Scripts\python.exe -m uvicorn open_vfd_simulator_backend.main:app --app-dir src --host 127.0.0.1 --port 8000
+$env:OPEN_VFD_HOST="127.0.0.1"
+$env:OPEN_VFD_PORT="8000"
+$env:OPEN_VFD_LOG_LEVEL="info"
+..\.venv\Scripts\python.exe -m open_vfd_simulator_backend.main
 ```
 
 Terminal 2:
@@ -291,6 +295,83 @@ Terminal 2:
 cd frontend
 pnpm dev:electron
 ```
+
+## Distribution Builds (Standalone Executables)
+
+To create user-friendly installers (AppImage for Linux, .exe for Windows), follow these steps:
+
+### 1) Build Backend as Standalone Executable
+
+```bash
+cd backend
+../.venv/bin/python -m pip install pyinstaller
+
+# Create PyInstaller spec for uvicorn server
+../.venv/bin/pyinstaller \
+  --onefile \
+  --windowed \
+  --name vfd-backend \
+  --hidden-import=uvicorn.logging \
+  --hidden-import=fastapi \
+  --collect-all=asyncua \
+  --collect-all=open_vfd_simulator_backend \
+  -p src \
+  src/open_vfd_simulator_backend/main.py
+```
+
+Expected output:
+
+- `backend/dist/vfd-backend` (Linux/macOS)
+- `backend/dist/vfd-backend.exe` (Windows)
+
+### 2) Build Complete Distribution
+
+#### Linux (AppImage)
+
+```bash
+# From repository root
+cd frontend
+pnpm run build:backend  # Build backend wheel and PyInstaller bundle
+pnpm run build:electron  # Build frontend + create AppImage
+```
+
+Expected output:
+
+- `frontend/dist/Open VFD Simulator-0.1.0.AppImage`
+
+#### Windows (.exe Installer)
+
+```powershell
+# From repository root
+cd frontend
+pnpm run build:backend  # Build backend wheel and PyInstaller bundle
+pnpm run build:electron  # Build frontend + create .exe installer
+```
+
+Expected output:
+
+- `frontend/dist/Open VFD Simulator Setup 0.1.0.exe`
+
+### 6) Distribution Package
+
+Copy the built executable along with:
+
+- `backend/dist/vfd-backend` or `backend/dist/vfd-backend.exe`
+- Any required system libraries (handled by PyInstaller on Linux)
+
+Users can then:
+
+1. Download the `.AppImage` (Linux) or `.exe` (Windows)
+2. Run it directly—no terminal, no Python installation required
+3. Backend starts automatically in the background
+4. Frontend UI appears immediately
+
+### Development Tips
+
+- Keep `electron/main.mjs` backend startup logic in sync with actual backend startup requirements
+- Test the built executable on target OS before distribution
+- For signing and notarization (macOS), refer to [electron-builder documentation](https://www.electron.build/)
+- PyInstaller may need additional `--hidden-import` flags if new dependencies are added
 
 ## Notes
 

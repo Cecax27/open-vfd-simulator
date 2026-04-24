@@ -1,0 +1,30 @@
+{
+  "appId": "com.example.open-vfd-simulator",
+  "productName": "Open VFD Simulator",
+  "directories": {
+    "buildResources": "assets",
+    "output": "dist"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/main.mjs",
+    "electron/preload.cjs",
+    "node_modules/**/*"
+  ],
+  "linux": {
+    "target": ["AppImage"],
+    "icon": "assets/icon.png",
+    "category": "Education"
+  },
+  "win": {
+    "target": ["nsis"],
+    "icon": "assets/icon.ico"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Open VFD Simulator"
+  }
+}

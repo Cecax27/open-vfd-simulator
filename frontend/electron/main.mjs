@@ -1,4 +1,5 @@
 import { BrowserWindow, Menu, app, dialog, ipcMain } from "electron";
+import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
@@ -6,6 +7,8 @@ import path from "node:path";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(currentDirectory, "..");
+
+let backendProcess = null;
 
 function sendMenuAction(action) {
   const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
@@ -126,39 +129,104 @@ function registerIpcHandlers() {
   });
 }
 
-function createWindow() {
+async function startBackend() {
+  return new Promise((resolve, reject) => {
+    const isDev = !app.isPackaged;
+    let backendPath;
+
+    if (isDev) {
+      // Development: use Python directly
+      backendPath = path.join(projectRoot, ".venv", "bin", "python");
+      backendProcess = spawn(backendPath, [
+        "-m", "uvicorn",
+        "open_vfd_simulator_backend.main:app",
+        "--app-dir", path.join(projectRoot, "backend", "src"),
+        "--host", "127.0.0.1",
+        "--port", "8000"
+      ], {
+        cwd: path.join(projectRoot, "backend"),
+        stdio: ["ignore", "pipe", "pipe"]
+      });
+    } else {
+      // Production: use PyInstaller bundle
+      if (process.platform === "win32") {
+        backendPath = path.join(process.resourcesPath, "backend", "main.exe");
+      } else {
+        backendPath = path.join(process.resourcesPath, "backend", "main");
+      }
+
+      backendProcess = spawn(backendPath, [],{
+        stdio: "pipe"
+      });
+    }
+
+    // Wait for backend to be ready
+    const checkBackend = setInterval(async () => {
+      try {
+        const response = await fetch("http://127.0.0.1:8000/health");
+        if (response.ok) {
+          clearInterval(checkBackend);
+          resolve();
+        }
+      } catch (err) {
+        // Backend not ready yet
+      }
+    }, 200);
+
+    // Timeout after 30 seconds
+    setTimeout(() => {
+      clearInterval(checkBackend);
+      reject(new Error("Backend startup timeout"));
+    }, 30000);
+
+    backendProcess.on("error", (err) => {
+      clearInterval(checkBackend);
+      reject(err);
+    });
+  });
+}
+
+async function createWindow() {
   const window = new BrowserWindow({
-    width: 1280,
-    height: 840,
-    minWidth: 960,
-    minHeight: 640,
+    width: 1200,
+    height: 800,
     webPreferences: {
       preload: path.join(currentDirectory, "preload.cjs"),
+      nodeIntegration: false,
+      contextIsolation: true,
     },
   });
 
-  if (!app.isPackaged) {
-    window.loadURL("http://localhost:5173");
-    return;
+  const isDev = !app.isPackaged;
+  const startUrl = isDev
+    ? "http://127.0.0.1:5173"
+    : `file://${path.join(currentDirectory, "../dist/index.html")}`;
+
+  window.loadURL(startUrl);
+
+  if (isDev) {
+    window.webContents.openDevTools();
   }
 
-  window.loadFile(path.join(projectRoot, "dist", "index.html"));
+  return window;
 }
 
-app.whenReady().then(() => {
-  registerIpcHandlers();
+app.on("ready", async () => {
   createApplicationMenu();
-  createWindow();
-});
+  registerIpcHandlers();
 
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+  try {
+    await startBackend();
+    await createWindow();
+  } catch (err) {
+    console.error("Failed to start backend:", err);
+    dialog.showErrorBox("Error", `Failed to start backend service: ${err.message}. Please try again.`);
+    app.quit();
   }
 });
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
+app.on("quit", () => {
+  if (backendProcess) {
+    backendProcess.kill();
   }
 });

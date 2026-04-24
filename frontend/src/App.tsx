@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, HashRouter, Route, Routes } from "react-router-dom";
 
 import { AppProvider } from "./context/AppContext";
 import { AppLayout } from "./components/AppLayout";
@@ -10,8 +10,10 @@ import { CommunicationsPage } from "./pages/CommunicationsPage";
 import { OpcUaPage } from "./pages/communications/OpcUaPage";
 
 export function App() {
+  const Router = window.location.protocol === "file:" ? HashRouter : BrowserRouter;
+
   return (
-    <BrowserRouter>
+    <Router>
       <AppProvider>
         <Routes>
           <Route element={<AppLayout />}>
@@ -24,6 +26,6 @@ export function App() {
           </Route>
         </Routes>
       </AppProvider>
-    </BrowserRouter>
+    </Router>
   );
 }
