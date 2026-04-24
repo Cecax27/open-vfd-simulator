@@ -19,6 +19,7 @@ dist/
 out/
 coverage/
 *.tsbuildinfo
+frontend/backend/
 
 # Editors
 .vscode/
