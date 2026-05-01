@@ -36,12 +36,46 @@ function createApplicationMenu() {
     {
       label: "View",
       submenu: [
-        { label: "Devices", accelerator: "CmdOrCtrl+1", click: () => sendMenuAction("view:devices") },
+        { label: "Devices", accelerator: "CmdOrCtrl+1", click: () => sendMenuAction("view:devices") }
+      ],
+    },
+    {
+      label: "Help",
+      submenu: [
+        {
+          label: "Documentation",
+          click: async () => {
+            const { shell } = await import("electron");
+            await shell.openExternal("https://openvfd.org/en/docs");
+          },
+        },
+        {
+          label: "Discord Server",
+          click: async () => {
+            const { shell } = await import("electron");
+            await shell.openExternal("hhttps://discord.gg/RScK4jEC7");
+          },
+        },
+        {
+          label: "GitHub Repository",
+          click: async () => {
+            const { shell } = await import("electron");
+            await shell.openExternal("https://github.com/Cecax27/open-vfd-simulator");
+          },
+        },
         { type: "separator" },
         { role: "reload" },
         { role: "toggleDevTools" },
+        { type: "separator" },
+        {
+          label: "Make a Donation",
+          click: async () => {
+            const { shell } = await import("electron");
+            await shell.openExternal("https://github.com/sponsors/Cecax27");
+          },
+        }
       ],
-    },
+    }
   ];
 
   const menu = Menu.buildFromTemplate(template);
@@ -84,7 +118,7 @@ function registerIpcHandlers() {
     const result = await dialog.showOpenDialog(window, {
       title: "Open Project",
       properties: ["openFile"],
-      filters: [{ name: "Open VFD Project", extensions: ["ovfd", "json"] }],
+      filters: [{ name: "OpenVFD Project", extensions: ["ovfd", "json"] }],
     });
 
     if (result.canceled || result.filePaths.length === 0) {
@@ -103,7 +137,7 @@ function registerIpcHandlers() {
     const result = await dialog.showSaveDialog(window, {
       title: "Save Project",
       defaultPath,
-      filters: [{ name: "Open VFD Project", extensions: ["ovfd", "json"] }],
+      filters: [{ name: "OpenVFD Project", extensions: ["ovfd", "json"] }],
     });
 
     if (result.canceled || !result.filePath) {

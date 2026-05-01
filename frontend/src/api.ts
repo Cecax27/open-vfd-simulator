@@ -1,5 +1,48 @@
 export type DeviceStatus = "stopped" | "running" | "fault";
 export type OperationMode = "local" | "remote";
+export type VFDControlStrategy = "v_hz";
+
+// ---------------------------------------------------------------------------
+// Catalog types
+// ---------------------------------------------------------------------------
+
+export interface MotorModelSummary {
+  id: string;
+  name: string;
+  manufacturer: string | null;
+  rated_power_w: number;
+  rated_voltage_v: number;
+  rated_frequency_hz: number;
+  rated_speed_rpm: number;
+  thumbnail_url: string | null;
+}
+
+export interface VFDModelSummary {
+  id: string;
+  name: string;
+  manufacturer: string | null;
+  rated_power_kva: number | null;
+  rated_voltage_v: number;
+  control_strategy: VFDControlStrategy;
+  thumbnail_url: string | null;
+}
+
+export interface MotorModel extends MotorModelSummary {
+  rated_current_a: number;
+  pole_pairs: number;
+  stator_resistance_ohm: number;
+  rotor_resistance_ohm: number;
+  stator_inductance_h: number;
+  rotor_inductance_h: number;
+  mutual_inductance_h: number;
+  inertia_kgm2: number;
+  friction_coefficient: number;
+  description: string | null;
+}
+
+export interface VFDModel extends VFDModelSummary {
+  description: string | null;
+}
 
 export type LoadType = "constant_torque" | "fan";
 
@@ -56,6 +99,8 @@ export interface DeviceRecord {
   id: string;
   name: string;
   template_key: string;
+  motor_model_id: string | null;
+  vfd_model_id: string | null;
   motor: MotorParameters;
   load: LoadParameters;
   runtime: RuntimeCommand;
@@ -152,6 +197,8 @@ export function createDevice(name: string): Promise<DeviceRecord> {
 export function createDeviceWithConfiguration(payload: {
   name: string;
   template_key?: string;
+  motor_model_id?: string | null;
+  vfd_model_id?: string | null;
   motor?: MotorParameters;
   load?: LoadParameters;
   opcua_mapping?: DeviceOpcUaMapping;
@@ -166,6 +213,8 @@ export function updateDeviceConfiguration(
   deviceId: string,
   payload: {
     name?: string;
+    motor_model_id?: string | null;
+    vfd_model_id?: string | null;
     motor?: MotorParameters;
     load?: LoadParameters;
     opcua_mapping?: DeviceOpcUaMapping;
@@ -251,4 +300,24 @@ export async function resetDevices(): Promise<void> {
   await apiRequest<void>("/api/devices/reset", {
     method: "POST",
   });
+}
+
+// ---------------------------------------------------------------------------
+// Catalog endpoints
+// ---------------------------------------------------------------------------
+
+export function listMotorModels(): Promise<MotorModelSummary[]> {
+  return apiRequest<MotorModelSummary[]>("/api/catalog/motors");
+}
+
+export function getMotorModel(id: string): Promise<MotorModel> {
+  return apiRequest<MotorModel>(`/api/catalog/motors/${encodeURIComponent(id)}`);
+}
+
+export function listVFDModels(): Promise<VFDModelSummary[]> {
+  return apiRequest<VFDModelSummary[]>("/api/catalog/vfds");
+}
+
+export function getVFDModel(id: string): Promise<VFDModel> {
+  return apiRequest<VFDModel>(`/api/catalog/vfds/${encodeURIComponent(id)}`);
 }

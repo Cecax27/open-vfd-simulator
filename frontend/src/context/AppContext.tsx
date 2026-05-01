@@ -4,6 +4,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import {
   DeviceRecord,
+  MotorModelSummary,
+  VFDModelSummary,
   OpcUaBrowseResponse,
   OpcUaClientConfiguration,
   OpcUaConnectionStatus,
@@ -15,6 +17,8 @@ import {
   getOpcUaStatus,
   getSoftwareConfiguration,
   listDevices,
+  listMotorModels,
+  listVFDModels,
   resetDevices,
   testOpcUaConnection,
   updateDeviceConfiguration,
@@ -60,12 +64,16 @@ type AppContextValue = {
   isMutating: boolean;
   notice: string | null;
   errorMessage: string | null;
+  motorModels: MotorModelSummary[];
+  vfdModels: VFDModelSummary[];
   startNewProject: () => Promise<void>;
   openProjectFromDialog: () => Promise<void>;
   openProjectFromPath: (filePath: string) => Promise<void>;
   closeProject: () => Promise<void>;
   handleSaveProject: (forceSaveAs: boolean) => Promise<boolean>;
   openCreateDevicePage: () => void;
+  openCreateDevicePageWithDraft: (draft: DeviceDraft) => void;
+  createDeviceFromWizard: (draft: DeviceDraft) => Promise<void>;
   openEditDevicePage: (device: DeviceRecord) => void;
   saveDeviceDraft: (event: FormEvent<HTMLFormElement>) => Promise<void>;
   deleteSelectedDevice: () => Promise<void>;
@@ -124,6 +132,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isMutating, setIsMutating] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const [motorModels, setMotorModels] = useState<MotorModelSummary[]>([]);
+  const [vfdModels, setVfdModels] = useState<VFDModelSummary[]>([]);
 
   const selectedDevice = devices.find((d) => d.id === selectedDeviceId) ?? null;
 
@@ -191,8 +202,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   async function initialize() {
     setRecentProjects(readRecentProjects());
-    await Promise.all([refreshDevices(), refreshConfiguration()]);
+    await Promise.all([refreshDevices(), refreshConfiguration(), refreshCatalog()]);
     setIsLoading(false);
+  }
+
+  async function refreshCatalog() {
+    try {
+      const [motors, vfds] = await Promise.all([listMotorModels(), listVFDModels()]);
+      setMotorModels(motors);
+      setVfdModels(vfds);
+    } catch {
+      // Catalog is non-critical — keep empty lists if backend is unreachable.
+    }
   }
 
   async function refreshDevices() {
@@ -346,6 +367,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const created = await createDeviceWithConfiguration({
         name: device.name,
         template_key: device.template_key,
+        motor_model_id: device.motor_model_id ?? null,
+        vfd_model_id: device.vfd_model_id ?? null,
         motor: device.motor,
         load: device.load,
         opcua_mapping: device.opcua_mapping,
@@ -497,6 +520,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         devices: currentDevices.map((device) => ({
           name: device.name,
           template_key: device.template_key,
+          motor_model_id: device.motor_model_id ?? null,
+          vfd_model_id: device.vfd_model_id ?? null,
           motor: device.motor,
           load: device.load,
           runtime: device.runtime,
@@ -525,11 +550,61 @@ export function AppProvider({ children }: { children: ReactNode }) {
     navigate("/devices/config");
   }
 
+  function openCreateDevicePageWithDraft(initialDraft: DeviceDraft) {
+    setEditMode("create");
+    setDraft(initialDraft);
+    navigate("/devices/config");
+  }
+
+  async function createDeviceFromWizard(initialDraft: DeviceDraft) {
+    setIsMutating(true);
+    setErrorMessage(null);
+    try {
+      const created = await createDeviceWithConfiguration({
+        name: initialDraft.name,
+        motor_model_id: initialDraft.motor_model_id ?? null,
+        vfd_model_id: initialDraft.vfd_model_id ?? null,
+        motor: initialDraft.motor,
+        load: initialDraft.load,
+        opcua_mapping: initialDraft.opcua_mapping,
+      });
+      const savedDevice = await updateRuntime(created.id, initialDraft.runtime);
+      await refreshDevices();
+      setSelectedDeviceId(created.id);
+      setEditMode("edit");
+      setDraft({
+        id: savedDevice.id,
+        name: savedDevice.name,
+        motor_model_id: savedDevice.motor_model_id ?? null,
+        vfd_model_id: savedDevice.vfd_model_id ?? null,
+        runtime: {
+          speed_reference_pct: savedDevice.runtime.speed_reference_pct,
+          acceleration_time_s: savedDevice.runtime.acceleration_time_s,
+          deceleration_time_s: savedDevice.runtime.deceleration_time_s,
+          status: savedDevice.runtime.status,
+          operation_mode: savedDevice.runtime.operation_mode,
+        },
+        motor: savedDevice.motor,
+        load: savedDevice.load,
+        opcua_mapping: savedDevice.opcua_mapping,
+      });
+      setProjectDirty(true);
+      setNotice(t("saved"));
+      navigate("/devices/config");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to create device");
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
   function openEditDevicePage(device: DeviceRecord) {
     setEditMode("edit");
     setDraft({
       id: device.id,
       name: device.name,
+      motor_model_id: device.motor_model_id ?? null,
+      vfd_model_id: device.vfd_model_id ?? null,
       runtime: {
         speed_reference_pct: device.runtime.speed_reference_pct,
         acceleration_time_s: device.runtime.acceleration_time_s,
@@ -555,6 +630,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (editMode === "create") {
         const created = await createDeviceWithConfiguration({
           name: draft.name,
+          motor_model_id: draft.motor_model_id ?? null,
+          vfd_model_id: draft.vfd_model_id ?? null,
           motor: draft.motor,
           load: draft.load,
           opcua_mapping: draft.opcua_mapping,
@@ -564,6 +641,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       } else if (draft.id) {
         await updateDeviceConfiguration(draft.id, {
           name: draft.name,
+          motor_model_id: draft.motor_model_id ?? null,
+          vfd_model_id: draft.vfd_model_id ?? null,
           motor: draft.motor,
           load: draft.load,
           opcua_mapping: draft.opcua_mapping,
@@ -578,6 +657,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setDraft({
           id: savedDevice.id,
           name: savedDevice.name,
+          motor_model_id: savedDevice.motor_model_id ?? null,
+          vfd_model_id: savedDevice.vfd_model_id ?? null,
           runtime: {
             speed_reference_pct: savedDevice.runtime.speed_reference_pct,
             acceleration_time_s: savedDevice.runtime.acceleration_time_s,
@@ -667,12 +748,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isMutating,
     notice,
     errorMessage,
+    motorModels,
+    vfdModels,
     startNewProject,
     openProjectFromDialog,
     openProjectFromPath,
     closeProject,
     handleSaveProject,
     openCreateDevicePage,
+    openCreateDevicePageWithDraft,
+    createDeviceFromWizard,
     openEditDevicePage,
     saveDeviceDraft,
     deleteSelectedDevice,

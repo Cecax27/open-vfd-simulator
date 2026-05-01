@@ -22,6 +22,8 @@ export type MenuAction =
 export type DeviceDraft = {
   id?: string;
   name: string;
+  motor_model_id?: string | null;
+  vfd_model_id?: string | null;
   runtime: {
     speed_reference_pct: number;
     acceleration_time_s: number;
@@ -41,6 +43,8 @@ export type DeviceDraft = {
 export type SavedProjectDevice = {
   name: string;
   template_key: string;
+  motor_model_id?: string | null;
+  vfd_model_id?: string | null;
   motor: MotorParameters;
   load: {
     load_type: LoadType;

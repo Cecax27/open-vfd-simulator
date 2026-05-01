@@ -1,9 +1,9 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Cpu, Zap } from "lucide-react";
 import type { FormEvent } from "react";
 import { useState } from "react";
 
 import { LoadType } from "../../api";
-import type { OpcUaBrowseItem } from "../../api";
+import type { OpcUaBrowseItem, MotorModelSummary, VFDModelSummary } from "../../api";
 import type { DeviceDraft } from "../../types";
 import { OPCUA_TELEMETRY_SPECS } from "../../lib/opcuaTelemetry";
 import { cn } from "../../lib/utils";
@@ -33,6 +33,11 @@ type DriveAdvancedSettingsProps = {
   telemetryNodePlaceholder: string;
   telemetryVariableLabel: (labelKey: string) => string;
   expectedTypeTooltip: (expectedType: string) => string;
+  motorModels: MotorModelSummary[];
+  vfdModels: VFDModelSummary[];
+  motorModelLabel: string;
+  vfdModelLabel: string;
+  noModelSelectedLabel: string;
 };
 
 export function DriveAdvancedSettings({
@@ -57,10 +62,22 @@ export function DriveAdvancedSettings({
   telemetryNodePlaceholder,
   telemetryVariableLabel,
   expectedTypeTooltip,
+  motorModels,
+  vfdModels,
+  motorModelLabel,
+  vfdModelLabel,
+  noModelSelectedLabel,
 }: DriveAdvancedSettingsProps) {
   const [open, setOpen] = useState(false);
   const commandNodeSuggestionsId = "opcua-command-node-options";
   const telemetryNodeSuggestionsId = "opcua-telemetry-node-options";
+
+  const selectedMotor = draft.motor_model_id
+    ? motorModels.find((m) => m.id === draft.motor_model_id)
+    : null;
+  const selectedVfd = draft.vfd_model_id
+    ? vfdModels.find((v) => v.id === draft.vfd_model_id)
+    : null;
 
   return (
     <Card>
@@ -84,6 +101,28 @@ export function DriveAdvancedSettings({
                   className="w-full text-accent-primary rounded-md px-3 py-2 text-sm font-jetbrains-mono"
                 />
               </label>
+
+              {/* Read-only model references */}
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="flex items-center gap-2 rounded-md bg-bg-tertiary px-3 py-2">
+                  <Cpu className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-text-muted">{motorModelLabel}</p>
+                    <p className="truncate text-xs font-medium text-text-secondary">
+                      {selectedMotor ? selectedMotor.name : noModelSelectedLabel}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 rounded-md bg-bg-tertiary px-3 py-2">
+                  <Zap className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-text-muted">{vfdModelLabel}</p>
+                    <p className="truncate text-xs font-medium text-text-secondary">
+                      {selectedVfd ? selectedVfd.name : noModelSelectedLabel}
+                    </p>
+                  </div>
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label className="block space-y-1">

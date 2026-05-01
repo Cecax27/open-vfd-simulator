@@ -36,6 +36,8 @@ export function DeviceConfigPage() {
     selectedDevice,
     configuration,
     opcUaBrowse,
+    motorModels,
+    vfdModels,
   } = useAppContext();
   const [isChartPaused, setIsChartPaused] = useState(false);
   const { trendSamples, logEntries } = useDriveTelemetryFeed(
@@ -205,6 +207,11 @@ export function DeviceConfigPage() {
             expectedTypeTooltip={(expectedType) =>
               t("opcuaExpectedTypeTooltip", { type: expectedType })
             }
+            motorModels={motorModels}
+            vfdModels={vfdModels}
+            motorModelLabel={t("motorModel")}
+            vfdModelLabel={t("vfdModel")}
+            noModelSelectedLabel={t("noModelSelected")}
           />
         </div>
 
