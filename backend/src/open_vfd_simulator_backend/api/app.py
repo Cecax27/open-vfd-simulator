@@ -3,15 +3,18 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from open_vfd_simulator_backend.api.routes.catalog import router as catalog_router
 from open_vfd_simulator_backend.api.routes.configuration import router as configuration_router
 from open_vfd_simulator_backend.api.routes.devices import router as devices_router
 from open_vfd_simulator_backend.api.routes.health import router as health_router
 from open_vfd_simulator_backend.api.routes.opcua import router as opcua_router
+from open_vfd_simulator_backend.services.catalog_service import catalog_service
 from open_vfd_simulator_backend.services.simulation_runtime import simulation_runtime
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    catalog_service.load()
     simulation_runtime.start()
     try:
         yield
@@ -40,4 +43,5 @@ def create_app() -> FastAPI:
     app.include_router(configuration_router)
     app.include_router(devices_router)
     app.include_router(opcua_router)
+    app.include_router(catalog_router)
     return app

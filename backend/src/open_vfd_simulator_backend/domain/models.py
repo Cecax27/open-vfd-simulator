@@ -34,6 +34,36 @@ class OPCUAConnectionState(str, Enum):
     ERROR = "error"
 
 
+# ---------------------------------------------------------------------------
+# Catalog: VFD control strategies
+# ---------------------------------------------------------------------------
+
+
+class VFDControlStrategy(str, Enum):
+    """Simulation engine strategy for a VFD model.
+
+    Each value maps to a concrete physics engine implementation:
+      - ``v_hz`` → :class:`~open_vfd_simulator_backend.simulation.basic_vfd.BasicVFDSimulator`
+                   (template_key ``"im_3ph_basic"``).
+
+    Future strategies (e.g. ``foc``, ``dtc``) will be added here as new
+    simulation adapters are implemented.
+    """
+
+    V_HZ = "v_hz"
+
+
+# Maps VFDControlStrategy → template_key used by the simulation engine.
+CONTROL_STRATEGY_TO_TEMPLATE_KEY: dict[VFDControlStrategy, str] = {
+    VFDControlStrategy.V_HZ: "im_3ph_basic",
+}
+
+
+# ---------------------------------------------------------------------------
+# Motor / Load / Runtime domain models (device simulation state)
+# ---------------------------------------------------------------------------
+
+
 class MotorParameters(BaseModel):
     rated_power_w: float = Field(default=500.0, gt=0)
     rated_voltage_v: float = Field(default=230.0, gt=0)
@@ -87,6 +117,11 @@ class DeviceOpcUaMapping(BaseModel):
         return normalized
 
 
+# ---------------------------------------------------------------------------
+# OPC UA models
+# ---------------------------------------------------------------------------
+
+
 class OPCUAClientConfiguration(BaseModel):
     enabled: bool = False
     endpoint_url: str | None = Field(default=None, min_length=1)
@@ -138,6 +173,11 @@ class OPCUAWriteResponse(BaseModel):
     written: int
 
 
+# ---------------------------------------------------------------------------
+# Telemetry
+# ---------------------------------------------------------------------------
+
+
 class TelemetrySnapshot(BaseModel):
     fault_code: int = 0
     commanded_frequency_hz: float = 0.0
@@ -167,10 +207,154 @@ OPCUA_TELEMETRY_VARIABLE_TYPES: dict[str, str] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Catalog models — Motor
+# ---------------------------------------------------------------------------
+
+
+class MotorModel(BaseModel):
+    """Full motor catalog entry combining IEC 60034-1 nameplate data and
+    simulation parameters.
+
+    IEC 60034-1 nameplate fields are used for identification and display.
+    Simulation fields are directly applied to the physics engine when the
+    motor is instantiated on a device.
+
+    ``thumbnail_url`` is injected by the catalog service at load time and
+    points to ``GET /api/catalog/motors/{id}/thumbnail`` when an image file
+    is present alongside the YAML definition.
+    """
+
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    manufacturer: str = Field(min_length=1)
+    thumbnail_url: str | None = None
+
+    # --- IEC 60034-1 nameplate fields ---
+    rated_power_kw: float = Field(gt=0, description="Rated shaft power (kW) — IEC 60034-1")
+    rated_voltage_v: float = Field(gt=0, description="Rated terminal voltage (V) — IEC 60034-1")
+    rated_frequency_hz: float = Field(gt=0, description="Rated supply frequency (Hz) — IEC 60034-1")
+    rated_current_a: float = Field(gt=0, description="Rated full-load current (A) — IEC 60034-1")
+    rated_speed_rpm: int = Field(gt=0, description="Rated synchronous speed (RPM) — IEC 60034-1")
+    power_factor: float = Field(
+        gt=0, le=1.0, description="Full-load power factor (cos φ) — IEC 60034-1"
+    )
+    ip_protection: str = Field(
+        min_length=1, description="Ingress protection rating (e.g. IP55) — IEC 60034-5"
+    )
+    thermal_class: str = Field(
+        min_length=1,
+        description="Insulation thermal class (e.g. F = 155 °C, H = 180 °C) — IEC 60034-1",
+    )
+    mounting: str = Field(
+        min_length=1,
+        description="Mounting arrangement code (e.g. B3, B5, B14) — IEC 60034-7",
+    )
+    efficiency_class: str | None = Field(
+        default=None,
+        description="Energy efficiency class (e.g. IE2, IE3, IE4) — IEC 60034-30",
+    )
+
+    # --- Simulation parameters ---
+    pole_pairs: int = Field(gt=0, description="Number of pole pairs")
+    stator_resistance_ohm: float = Field(gt=0, description="Stator winding resistance (Ω)")
+    rotor_resistance_ohm: float = Field(gt=0, description="Rotor referred resistance (Ω)")
+    stator_inductance_h: float = Field(gt=0, description="Stator leakage inductance (H)")
+    rotor_inductance_h: float = Field(gt=0, description="Rotor leakage inductance (H)")
+    mutual_inductance_h: float = Field(gt=0, description="Mutual (magnetising) inductance (H)")
+    inertia_kgm2: float = Field(gt=0, description="Rotor moment of inertia (kg·m²)")
+    friction_coefficient: float = Field(
+        ge=0, description="Viscous friction coefficient (N·m·s/rad)"
+    )
+
+
+class MotorModelSummary(BaseModel):
+    """Lightweight motor catalog entry returned by the list endpoint."""
+
+    id: str
+    name: str
+    manufacturer: str
+    thumbnail_url: str | None = None
+    rated_power_kw: float
+    rated_voltage_v: float
+    rated_frequency_hz: float
+    rated_current_a: float
+    rated_speed_rpm: int
+    efficiency_class: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Catalog models — VFD
+# ---------------------------------------------------------------------------
+
+
+class VFDModel(BaseModel):
+    """Full VFD catalog entry.
+
+    ``control_strategy`` determines which simulation engine is used when a
+    device is created with this VFD model and maps directly to
+    ``DeviceRecord.template_key`` via ``CONTROL_STRATEGY_TO_TEMPLATE_KEY``.
+
+    ``simulation_params`` is a flexible dictionary for strategy-specific
+    parameters.  It is empty for ``v_hz`` but will carry additional values
+    for future strategies such as ``foc``.
+
+    ``thumbnail_url`` is injected by the catalog service at load time.
+    """
+
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    manufacturer: str = Field(min_length=1)
+    thumbnail_url: str | None = None
+
+    # --- Nameplate fields ---
+    rated_input_voltage_v: float = Field(gt=0, description="Rated AC input voltage (V)")
+    rated_output_voltage_v: float = Field(gt=0, description="Rated AC output voltage (V)")
+    rated_output_current_a: float = Field(gt=0, description="Rated continuous output current (A)")
+    max_output_frequency_hz: float = Field(gt=0, description="Maximum output frequency (Hz)")
+    min_output_frequency_hz: float = Field(ge=0, description="Minimum output frequency (Hz)")
+    ip_protection: str = Field(min_length=1, description="Ingress protection rating (e.g. IP20)")
+
+    # --- Simulation / control ---
+    control_strategy: VFDControlStrategy = Field(
+        description="Physics engine strategy; determines template_key on device creation"
+    )
+    simulation_params: dict = Field(
+        default_factory=dict,
+        description="Strategy-specific simulation parameters (empty for v_hz)",
+    )
+
+
+class VFDModelSummary(BaseModel):
+    """Lightweight VFD catalog entry returned by the list endpoint."""
+
+    id: str
+    name: str
+    manufacturer: str
+    thumbnail_url: str | None = None
+    rated_output_voltage_v: float
+    rated_output_current_a: float
+    max_output_frequency_hz: float
+    control_strategy: VFDControlStrategy
+
+
+# ---------------------------------------------------------------------------
+# Device record and CRUD request models
+# ---------------------------------------------------------------------------
+
+
 class DeviceRecord(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     name: str = Field(min_length=1, max_length=120)
     template_key: str = Field(default="im_3ph_basic")
+    motor_model_id: str | None = Field(
+        default=None,
+        description="ID of the motor catalog entry used to populate motor parameters.",
+    )
+    vfd_model_id: str | None = Field(
+        default=None,
+        description="ID of the VFD catalog entry used when this device was created.",
+    )
     motor: MotorParameters = Field(default_factory=MotorParameters)
     load: LoadParameters = Field(default_factory=LoadParameters)
     runtime: RuntimeCommand = Field(default_factory=RuntimeCommand)
@@ -180,8 +364,16 @@ class DeviceRecord(BaseModel):
 
 class DeviceCreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
+    # Explicit template_key; overridden by vfd_model_id when provided.
     template_key: str = Field(default="im_3ph_basic")
-    motor: MotorParameters = Field(default_factory=MotorParameters)
+    # Optional catalog references. When motor_model_id is provided and motor
+    # is None, motor parameters are populated from the catalog entry.
+    # When vfd_model_id is provided, template_key is derived from the VFD's
+    # control_strategy (overriding any explicit template_key).
+    motor_model_id: str | None = None
+    vfd_model_id: str | None = None
+    # Explicit motor/load/opcua_mapping — take precedence over catalog values.
+    motor: MotorParameters | None = None
     load: LoadParameters = Field(default_factory=LoadParameters)
     opcua_mapping: DeviceOpcUaMapping = Field(default_factory=DeviceOpcUaMapping)
 
@@ -197,6 +389,9 @@ class RuntimeCommandUpdateRequest(BaseModel):
 
 class DeviceConfigurationUpdateRequest(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
+    # Optional catalog references for partial updates.
+    motor_model_id: str | None = None
+    vfd_model_id: str | None = None
     motor: MotorParameters | None = None
     load: LoadParameters | None = None
     opcua_mapping: DeviceOpcUaMapping | None = None

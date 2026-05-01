@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
-const projectRoot = path.resolve(currentDirectory, "..");
+const projectRoot = path.resolve(currentDirectory, "../..");
 
 let backendProcess = null;
 
@@ -142,7 +142,8 @@ async function startBackend() {
         "open_vfd_simulator_backend.main:app",
         "--app-dir", path.join(projectRoot, "backend", "src"),
         "--host", "127.0.0.1",
-        "--port", "8000"
+        "--port", "8000",
+        "--reload"
       ], {
         cwd: path.join(projectRoot, "backend"),
         stdio: ["ignore", "pipe", "pipe"]

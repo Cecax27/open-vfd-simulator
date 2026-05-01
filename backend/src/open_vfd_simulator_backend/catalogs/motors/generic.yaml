@@ -1,0 +1,100 @@
+# Generic 3-phase induction motor catalog
+#
+# These are reference models based on typical IEC 60034-1 parameters for
+# squirrel-cage induction motors. They are NOT tied to any real manufacturer.
+# Use them as a starting point when no specific datasheet is available, or
+# as templates when creating your own motor models.
+#
+# See docs/CATALOG_FORMAT.md for the full schema reference.
+
+motors:
+
+  # --------------------------------------------------------------------------
+  # 0.55 kW / 230 V / 50 Hz — small frame, typical conveyor / pump application
+  # --------------------------------------------------------------------------
+  - id: "generic_im_3ph_0.55kw_230v_50hz"
+    name: "Generic IM 3Ph 0.55 kW 230 V 50 Hz"
+    manufacturer: "Generic"
+    thumbnail: "thumbnails/generic_im_3ph_small.png"
+
+    # IEC 60034-1 nameplate
+    rated_power_kw: 0.55
+    rated_voltage_v: 230.0
+    rated_frequency_hz: 50.0
+    rated_current_a: 3.5
+    rated_speed_rpm: 1400
+    power_factor: 0.74
+    ip_protection: "IP55"
+    thermal_class: "F"
+    mounting: "B3"
+    efficiency_class: "IE2"
+
+    # Simulation parameters
+    pole_pairs: 2
+    stator_resistance_ohm: 5.1
+    rotor_resistance_ohm: 4.8
+    stator_inductance_h: 0.180
+    rotor_inductance_h: 0.180
+    mutual_inductance_h: 0.158
+    inertia_kgm2: 0.0075
+    friction_coefficient: 0.010
+
+  # --------------------------------------------------------------------------
+  # 1.5 kW / 400 V / 50 Hz — medium frame, general purpose
+  # --------------------------------------------------------------------------
+  - id: "generic_im_3ph_1.5kw_400v_50hz"
+    name: "Generic IM 3Ph 1.5 kW 400 V 50 Hz"
+    manufacturer: "Generic"
+    thumbnail: "thumbnails/generic_im_3ph_medium.png"
+
+    # IEC 60034-1 nameplate
+    rated_power_kw: 1.5
+    rated_voltage_v: 400.0
+    rated_frequency_hz: 50.0
+    rated_current_a: 3.7
+    rated_speed_rpm: 1430
+    power_factor: 0.81
+    ip_protection: "IP55"
+    thermal_class: "F"
+    mounting: "B3"
+    efficiency_class: "IE3"
+
+    # Simulation parameters
+    pole_pairs: 2
+    stator_resistance_ohm: 3.35
+    rotor_resistance_ohm: 1.99
+    stator_inductance_h: 0.172
+    rotor_inductance_h: 0.172
+    mutual_inductance_h: 0.165
+    inertia_kgm2: 0.0040
+    friction_coefficient: 0.008
+
+  # --------------------------------------------------------------------------
+  # 7.5 kW / 400 V / 50 Hz — large frame, industrial machinery
+  # --------------------------------------------------------------------------
+  - id: "generic_im_3ph_7.5kw_400v_50hz"
+    name: "Generic IM 3Ph 7.5 kW 400 V 50 Hz"
+    manufacturer: "Generic"
+    thumbnail: "thumbnails/generic_im_3ph_large.png"
+
+    # IEC 60034-1 nameplate
+    rated_power_kw: 7.5
+    rated_voltage_v: 400.0
+    rated_frequency_hz: 50.0
+    rated_current_a: 15.5
+    rated_speed_rpm: 1460
+    power_factor: 0.86
+    ip_protection: "IP55"
+    thermal_class: "F"
+    mounting: "B3"
+    efficiency_class: "IE3"
+
+    # Simulation parameters
+    pole_pairs: 2
+    stator_resistance_ohm: 0.435
+    rotor_resistance_ohm: 0.816
+    stator_inductance_h: 0.004
+    rotor_inductance_h: 0.002
+    mutual_inductance_h: 0.069
+    inertia_kgm2: 0.0600
+    friction_coefficient: 0.025

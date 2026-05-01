@@ -14,22 +14,60 @@ Electron + React UI
    |- Device registry
    |- Simulation adapters
    |- Protocol adapters
+   |- Model catalog
    `- Persistence
 ```
 
-## MVP Decisions
+## Backend Modules
 
-- One motor and VFD model for the first release
-- Multiple device instances per project
-- One canonical device state shared by UI, protocols, and persistence
-- motulator integrated behind an internal simulation adapter
+- `api/`: HTTP surface — routers for devices, catalog, OPC UA, configuration, health
+- `domain/`: device, runtime, telemetry, motor model, and VFD model definitions
+- `services/`: registry and orchestration services (device_registry, catalog_service, simulation_runtime, opcua_client, software_configuration)
+- `simulation/`: physics engine adapter boundary (BasicVFDSimulator for V/Hz strategy)
+- `catalogs/`: built-in YAML model files for motors and VFDs
 
-## Initial Backend Modules
+## Motor and VFD Catalog
 
-- `api/`: HTTP and WebSocket surface
-- `domain/`: device, runtime, and telemetry models
-- `services/`: registry and orchestration services
-- `simulation/`: adapter boundary for the physics engine
+The catalog system allows multiple motor and VFD models to be defined, selected when creating a device, and extended by contributors without modifying the Python package.
+
+### Built-in catalog
+
+Built-in models ship as YAML files under `catalogs/motors/` and `catalogs/vfds/`. The `CatalogService` singleton loads them at application startup (lifespan).
+
+### User catalog
+
+Set the `OPEN_VFD_CATALOG_DIR` environment variable to a directory containing `motors/*.yaml` and/or `vfds/*.yaml` files. These are loaded at startup in addition to built-in models. User entries override built-ins with the same `id`.
+
+### Motor models and IEC 60034-1
+
+Each `MotorModel` entry combines IEC 60034-1 nameplate fields (rated power, voltage, frequency, current, speed, power factor, IP protection, thermal class, mounting, efficiency class) with the simulation parameters required by the physics engine (pole pairs, resistances, inductances, inertia, friction coefficient).
+
+### VFD models and control strategies
+
+Each `VFDModel` entry includes nameplate data and a `control_strategy` field that maps to a simulation engine via `CONTROL_STRATEGY_TO_TEMPLATE_KEY`:
+
+| `control_strategy` | `template_key` | Engine |
+|---|---|---|
+| `v_hz` | `im_3ph_basic` | `BasicVFDSimulator` (scalar V/Hz) |
+
+When a device is created with `vfd_model_id`, the device's `template_key` is set automatically. When `motor_model_id` is provided, motor parameters are pre-populated from the catalog entry.
+
+### Thumbnails
+
+Each catalog entry may reference an optional PNG or WebP thumbnail via a `thumbnail` path relative to the YAML file. The catalog service resolves this path at startup and injects a `thumbnail_url` field (`/api/catalog/motors/{id}/thumbnail` or `/api/catalog/vfds/{id}/thumbnail`) when the file exists on disk.
+
+### Catalog API
+
+```
+GET /api/catalog/motors                  → list[MotorModelSummary]
+GET /api/catalog/motors/{id}             → MotorModel
+GET /api/catalog/motors/{id}/thumbnail   → image/png or image/webp
+GET /api/catalog/vfds                    → list[VFDModelSummary]
+GET /api/catalog/vfds/{id}               → VFDModel
+GET /api/catalog/vfds/{id}/thumbnail     → image/png or image/webp
+```
+
+See `docs/CATALOG_FORMAT.md` for the full YAML schema and contribution guide.
 
 ## OPC UA Integration
 

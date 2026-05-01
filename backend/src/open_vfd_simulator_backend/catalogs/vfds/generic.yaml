@@ -1,0 +1,52 @@
+# Generic V/Hz VFD catalog
+#
+# These are reference models for scalar (V/Hz) variable frequency drives.
+# They are NOT tied to any real manufacturer. Use them as starting points
+# or as templates when creating your own VFD models.
+#
+# The control_strategy field determines which simulation engine is used:
+#   v_hz  →  BasicVFDSimulator  (template_key: "im_3ph_basic")
+#
+# See docs/CATALOG_FORMAT.md for the full schema reference.
+
+vfds:
+
+  # --------------------------------------------------------------------------
+  # Compact single-phase input, 1-phase/3-phase output, up to 2.2 kW
+  # --------------------------------------------------------------------------
+  - id: "generic_vfd_vhz_2.2kw_230v"
+    name: "Generic V/Hz Drive 2.2 kW 230 V"
+    manufacturer: "Generic"
+    thumbnail: "thumbnails/generic_vfd_compact.png"
+
+    # Nameplate
+    rated_input_voltage_v: 230.0
+    rated_output_voltage_v: 230.0
+    rated_output_current_a: 10.5
+    max_output_frequency_hz: 400.0
+    min_output_frequency_hz: 0.5
+    ip_protection: "IP20"
+
+    # Control / simulation
+    control_strategy: "v_hz"
+    simulation_params: {}
+
+  # --------------------------------------------------------------------------
+  # Standard 3-phase input / output, up to 11 kW
+  # --------------------------------------------------------------------------
+  - id: "generic_vfd_vhz_11kw_400v"
+    name: "Generic V/Hz Drive 11 kW 400 V"
+    manufacturer: "Generic"
+    thumbnail: "thumbnails/generic_vfd_standard.png"
+
+    # Nameplate
+    rated_input_voltage_v: 400.0
+    rated_output_voltage_v: 400.0
+    rated_output_current_a: 25.0
+    max_output_frequency_hz: 400.0
+    min_output_frequency_hz: 0.5
+    ip_protection: "IP20"
+
+    # Control / simulation
+    control_strategy: "v_hz"
+    simulation_params: {}
